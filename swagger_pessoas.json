@@ -1,0 +1,84 @@
+{
+  "paths": {
+    "/api/pessoa/detalhes/{PessoaID}": {
+      "get": {
+        "tags": [
+          "PessoasApi"
+        ],
+        "operationId": "PessoasApi_Detalhes",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "PessoaID",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "model.pessoaID",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.vagaID",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/pessoa/obterCpfDataNascimento": {
+      "get": {
+        "tags": [
+          "PessoasApi"
+        ],
+        "operationId": "PessoasApi_ObterPorCpfDataNascimento",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.cpf",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.dataNascimento",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {}
+}

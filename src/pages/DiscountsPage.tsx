@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, FileText, Upload, Download, AlertCircle, X, DollarSign, Clock, Filter, Paperclip, CheckCircle, Search, Scan, Users, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Check, FileText, Upload, Download, AlertCircle, X, DollarSign, Clock, Filter, Paperclip, CheckCircle, Search, Scan, Users, Calendar, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Discount = {
@@ -19,6 +20,7 @@ export default function DiscountsPage() {
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDiscounts();
@@ -60,9 +62,12 @@ export default function DiscountsPage() {
             </div>
           </div>
           <div className="flex gap-4 w-full md:w-auto">
-            <button className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
-              <Filter size={18} className="text-primary" />
-              Filtros Avançados
+            <button
+              onClick={() => navigate('/receipts')}
+              className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <FileText size={18} className="text-primary" />
+              Recibos
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
@@ -424,20 +429,7 @@ function NewDiscountModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
               </div>
             </div>
 
-            {/* Collaborator Search - Row 2 */}
-            <div className="relative group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-deep-navy/30 group-focus-within:text-primary transition-colors" size={20} />
-              <input
-                id="modal-discount-search"
-                className="search-input"
-                placeholder="Pesquisar Colaborador (Ex: Alan Fonseca...)"
-                value={lookupData.employee}
-                onChange={(e) => {
-                  setLookupData({ ...lookupData, employee: e.target.value });
-                  if (e.target.value.length > 3) setShowKardex(true);
-                }}
-              />
-            </div>
+
 
             {/* Kardex Pendencies Table */}
             {showKardex && (
@@ -521,8 +513,20 @@ function NewDiscountModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
                     <h5 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-l-4 border-primary pl-4">Identificação do Fluxo</h5>
                     <div className="grid grid-cols-1 gap-8">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Colaborador Localizado</label>
-                        <input id="disc-employee" name="employee_name" value={lookupData.employee} readOnly required className="premium-input bg-slate-50 font-bold" placeholder="Aguardando seleção..." />
+                        <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Colaborador</label>
+                        <input
+                          id="disc-employee"
+                          name="employee_name"
+                          value={lookupData.employee}
+                          onChange={(e) => {
+                            setLookupData({ ...lookupData, employee: e.target.value });
+                            if (e.target.value.length > 3) setShowKardex(true);
+                            else setShowKardex(false);
+                          }}
+                          required
+                          className="premium-input bg-white font-bold"
+                          placeholder="Digite o nome do colaborador..."
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Modalidade</label>

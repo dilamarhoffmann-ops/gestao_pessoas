@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Gavel, Calendar, AlertTriangle, FileText, DollarSign, MapPin,
   Scale, Clock, ChevronDown, ChevronUp, Edit3, X, Search, Filter,
-  CheckCircle, Check, Trash2, AlertOctagon
+  CheckCircle, Check, Trash2, AlertOctagon, FileCheck, Layers,
+  Upload, Download, FileJson, Trash
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -458,7 +459,7 @@ const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: ()
             </div>
           </div>
 
-          <div className="p-8 xl:w-2/5 bg-white space-y-6">
+          <div className="p-8 xl:w-2/5 bg-white space-y-4">
             <div className="flex justify-between items-center px-1">
               <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-[0.2em] flex items-center gap-2">
                 <Clock size={12} className="text-primary" /> Jornada Processual
@@ -468,30 +469,76 @@ const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: ()
               </div>
             </div>
 
-            <div className="relative pt-2 pb-1">
-              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2" />
-              <div className="flex justify-between relative z-10 px-1">
-                {['Inicial', 'Conhecimento', 'Recursal', 'Execução'].map((phase) => {
-                  const status = getPhaseStatus(phase);
-                  return (
-                    <div key={phase} className="flex flex-col items-center gap-2">
-                      <div className={cn(
-                        "w-5 h-5 border-2 transition-all duration-500 flex items-center justify-center",
-                        status === 'active' ? "bg-primary border-primary shadow-lg shadow-primary/30 rotate-45 scale-110" :
-                          status === 'completed' ? "bg-deep-navy border-deep-navy rotate-0" : "bg-white border-slate-100"
-                      )}>
-                        {status === 'completed' && <Check size={10} className="text-white" />}
-                        {status === 'active' && <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
+            {/* ── NOVO FLUXO VISUAL DE 6 ETAPAS ── */}
+            {(() => {
+              const STEPS = [
+                { key: 'inicial', label: 'Inicial', icon: <FileText size={14} />, color: '#3b6ff5' },
+                { key: 'citação', label: 'Citação', icon: <FileCheck size={14} />, color: '#5255d8' },
+                { key: 'conhecimento', label: 'Mérito', icon: <Scale size={14} />, color: '#6b3ec4' },
+                { key: 'perícia', label: 'Perícia', icon: <Layers size={14} />, color: '#8d2da8' },
+                { key: 'recursal', label: 'Recursal', icon: <AlertTriangle size={14} />, color: '#b8226e' },
+                { key: 'execução', label: 'Execução', icon: <Gavel size={14} />, color: '#e0224a' },
+              ];
+              const current = lawsuit.current_phase?.toLowerCase() || 'inicial';
+              const activeIdx = STEPS.findIndex(s => current.includes(s.key));
+              const effectiveIdx = activeIdx === -1 ? 0 : activeIdx;
+
+              return (
+                <div className="flex items-center w-full overflow-x-auto py-5 px-3 custom-scrollbar no-scrollbar">
+                  {STEPS.map((step, idx) => {
+                    const isDone = idx < effectiveIdx;
+                    const isActive = idx === effectiveIdx;
+                    const isPending = idx > effectiveIdx;
+                    return (
+                      <div key={step.key} className="flex items-center flex-1 min-w-[55px]">
+                        {/* Node */}
+                        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                          <div
+                            className={cn(
+                              "w-10 h-10 rounded-full border-[3px] flex items-center justify-center transition-all duration-500 shadow-sm relative z-10",
+                              isDone ? "border-transparent text-white"
+                                : isActive ? "border-transparent text-white scale-110 shadow-lg"
+                                  : "border-slate-100 text-slate-300 bg-white"
+                            )}
+                            style={isDone || isActive ? {
+                              background: `radial-gradient(circle at 40% 40%, ${step.color}cc, ${step.color})`,
+                              boxShadow: isActive ? `0 4px 14px ${step.color}55` : undefined,
+                            } : undefined}
+                          >
+                            {isDone ? <Check size={14} /> : React.cloneElement(step.icon as React.ReactElement, { size: 16 })}
+                          </div>
+                          {/* Number badge */}
+                          <div
+                            className={cn(
+                              "w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black mt-0.5",
+                              isDone || isActive ? "text-white" : "bg-slate-100 text-slate-400"
+                            )}
+                            style={isDone || isActive ? {
+                              background: step.color,
+                            } : undefined}
+                          >
+                            {String(idx + 1).padStart(2, '0')}
+                          </div>
+                          <p className={cn(
+                            "text-[7px] font-black uppercase tracking-tight text-center leading-tight whitespace-nowrap",
+                            isActive ? "text-primary" : isDone ? "text-deep-navy/50" : "text-slate-300"
+                          )}>{step.label}</p>
+                        </div>
+
+                        {/* Arrow connector */}
+                        {idx < STEPS.length - 1 && (
+                          <div className="flex-1 flex items-center justify-center px-0.5 mb-8 opacity-40">
+                            <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
+                              <path d="M0 6 H18 M14 2 L20 6 L14 10" stroke={idx < effectiveIdx ? STEPS[idx].color : '#e2e8f0'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                      <p className={cn(
-                        "text-[8px] font-black uppercase tracking-tight",
-                        status === 'active' ? "text-primary" : "text-deep-navy/30"
-                      )}>{phase}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-2 gap-8 border-t border-slate-50 pt-6 mt-4">
               <div>
@@ -678,6 +725,65 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
     risk_provision: 'Possible'
   });
 
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [uploadingStatus, setUploadingStatus] = useState<{ [key: string]: boolean }>({});
+
+  useEffect(() => {
+    if (initialData && activeTab === 'documentos') {
+      fetchDocuments();
+    }
+  }, [activeTab, initialData]);
+
+  const fetchDocuments = async () => {
+    if (!initialData) return;
+    try {
+      const res = await fetch(`/api/lawsuits/${initialData.id}/documents`);
+      const data = await res.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error("Error fetching docs:", error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !initialData) return;
+
+    setUploadingStatus(prev => ({ ...prev, [type]: true }));
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadType', type);
+
+    try {
+      const res = await fetch(`/api/lawsuits/${initialData.id}/documents`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        fetchDocuments();
+      } else {
+        alert('Erro no upload do arquivo.');
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+    } finally {
+      setUploadingStatus(prev => ({ ...prev, [type]: false }));
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteDoc = async (docId: number) => {
+    if (!initialData || !window.confirm('Deseja excluir este documento?')) return;
+    try {
+      const res = await fetch(`/api/lawsuits/${initialData.id}/documents/${docId}`, { method: 'DELETE' });
+      if (res.ok) fetchDocuments();
+    } catch (error) {
+      console.error("Delete doc error:", error);
+    }
+  };
+
+
   const handleChange = (name: string, value: any) => {
     setLocalData((prev: any) => ({ ...prev, [name]: value }));
   };
@@ -728,7 +834,9 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
     { id: 'recursal', label: '2. Instância' },
     { id: 'execucao', label: '3. Ativos' },
     { id: 'financeiro', label: 'Auditoria' },
+    ...(initialData ? [{ id: 'documentos', label: 'Documentos' }] : []),
   ];
+
 
   return (
     <div className="absolute inset-0 backdrop-blur-sm flex justify-center z-50 overflow-hidden animate-in fade-in duration-300">
@@ -878,36 +986,7 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
                     </div>
                   )}
 
-                  {activeTab === 'financeiro' && (
-                    <div className="grid grid-cols-1 gap-12 animate-slide-up">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <Input id="cause_value" label="Valor da Causa" name="cause_value" type="number" step="0.01" value={localData.cause_value} onChange={handleChange} highlightIcon={<DollarSign size={16} />} />
-                        <Input id="condemnation_value" label="Valor Condenação" name="condemnation_value" type="number" step="0.01" value={localData.condemnation_value} onChange={handleChange} />
-                        <Input id="appeal_deposit" label="Depósito Recursal" name="appeal_deposit" type="number" step="0.01" value={localData.appeal_deposit} onChange={handleChange} />
-                        <Input id="court_costs" label="Custas Processuais" name="court_costs" type="number" step="0.01" value={localData.court_costs} onChange={handleChange} />
-                      </div>
 
-                      <div className="bg-deep-navy text-white p-12 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-2xl">
-                        <div className="absolute -right-12 -bottom-12 opacity-10 rotate-12">
-                          <DollarSign size={200} />
-                        </div>
-                        <div className="space-y-2 relative z-10 w-full md:w-1/2">
-                          <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Análise de Risco Bruta</label>
-                          <select
-                            name="risk_provision"
-                            value={localData.risk_provision}
-                            onChange={(e) => handleChange('risk_provision', e.target.value)}
-                            className="premium-input bg-white/10 border-white/20 text-white font-black"
-                          >
-                            <option value="Remote" className="text-deep-navy">Remota (0-25%)</option>
-                            <option value="Possible" className="text-deep-navy">Possível (25-50%)</option>
-                            <option value="Probable" className="text-deep-navy">Provável (50-100%)</option>
-                          </select>
-                          <p className="text-[11px] text-white/40 font-bold uppercase mt-4 leading-relaxed">Provisão financeira baseada em algoritmos de contingência jurídica.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {activeTab === 'recursal' && (
                     <div className="space-y-10 animate-slide-up">
@@ -1013,6 +1092,161 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
                             placeholder="Ex: Acordo realizado. Pagamento via depósito judicial em 3 parcelas..."
                             className="w-full bg-white border border-slate-100 rounded-2xl p-6 text-sm font-medium placeholder:text-deep-navy/20 focus:border-primary outline-none transition-all min-h-[160px] shadow-sm"
                           />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'financeiro' && (
+                    <div className="grid grid-cols-1 gap-12 animate-slide-up">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        <Input id="cause_value" label="Valor da Causa" name="cause_value" type="number" step="0.01" value={localData.cause_value} onChange={handleChange} highlightIcon={<DollarSign size={16} />} />
+                        <Input id="condemnation_value" label="Valor Condenação" name="condemnation_value" type="number" step="0.01" value={localData.condemnation_value} onChange={handleChange} />
+                        <Input id="appeal_deposit" label="Depósito Recursal" name="appeal_deposit" type="number" step="0.01" value={localData.appeal_deposit} onChange={handleChange} />
+                        <Input id="court_costs" label="Custas Processuais" name="court_costs" type="number" step="0.01" value={localData.court_costs} onChange={handleChange} />
+                      </div>
+
+                      <div className="bg-deep-navy text-white p-12 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-2xl">
+                        <div className="absolute -right-12 -bottom-12 opacity-10 rotate-12">
+                          <DollarSign size={200} />
+                        </div>
+                        <div className="space-y-2 relative z-10 w-full md:w-1/2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Análise de Risco Bruta</label>
+                          <select
+                            name="risk_provision"
+                            value={localData.risk_provision}
+                            onChange={(e) => handleChange('risk_provision', e.target.value)}
+                            className="premium-input bg-white/10 border-white/20 text-white font-black"
+                          >
+                            <option value="Remote" className="text-deep-navy">Remota (0-25%)</option>
+                            <option value="Possible" className="text-deep-navy">Possível (25-50%)</option>
+                            <option value="Probable" className="text-deep-navy">Provável (50-100%)</option>
+                          </select>
+                          <p className="text-[11px] text-white/40 font-bold uppercase mt-4 leading-relaxed">Provisão financeira baseada em algoritmos de contingência jurídica.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'documentos' && (
+                    <div className="space-y-12 animate-slide-up">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        {/* Procuração */}
+                        <div className="bg-white border border-slate-100 rounded-[2rem] p-10 space-y-8 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 shadow-inner">
+                                <Scale size={24} />
+                              </div>
+                              <div>
+                                <h5 className="text-[11px] font-black text-deep-navy uppercase tracking-widest">Procuração</h5>
+                                <p className="text-[10px] font-bold text-deep-navy/30 uppercase tracking-widest mt-0.5">Representação Legal</p>
+                              </div>
+                            </div>
+                            <label className={cn(
+                              "cursor-pointer px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20",
+                              uploadingStatus['procuracao'] && "opacity-50 pointer-events-none"
+                            )}>
+                              {uploadingStatus['procuracao'] ? 'Enviando...' : <><Upload size={14} /> Upload</>}
+                              <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'procuracao')} disabled={uploadingStatus['procuracao']} />
+                            </label>
+                          </div>
+
+                          <div className="space-y-4">
+                            {documents.filter(d => d.uploadType === 'procuracao').length === 0 ? (
+                              <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center">
+                                <FileText size={24} className="mx-auto text-slate-200 mb-2" />
+                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Nenhuma procuração enviada</p>
+                              </div>
+                            ) : (
+                              documents.filter(d => d.uploadType === 'procuracao').map(doc => (
+                                <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/20 transition-all">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+                                      <FileText size={18} />
+                                    </div>
+                                    <div className="overflow-hidden max-w-[150px] md:max-w-[200px]">
+                                      <p className="text-xs font-black text-deep-navy truncate" title={doc.fileName}>{doc.fileName}</p>
+                                      <p className="text-[9px] font-bold text-deep-navy/40 uppercase tracking-widest">{format(new Date(doc.created_at), "dd/MM/yyyy HH:mm")}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all" title="Ver Documento">
+                                      <Download size={16} />
+                                    </a>
+                                    <button onClick={() => handleDeleteDoc(doc.id)} className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all" title="Excluir">
+                                      <Trash size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Preposto */}
+                        <div className="bg-white border border-slate-100 rounded-[2rem] p-10 space-y-8 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner">
+                                <CheckCircle size={24} />
+                              </div>
+                              <div>
+                                <h5 className="text-[11px] font-black text-deep-navy uppercase tracking-widest">Preposto</h5>
+                                <p className="text-[10px] font-bold text-deep-navy/30 uppercase tracking-widest mt-0.5">Carta de Preposição</p>
+                              </div>
+                            </div>
+                            <label className={cn(
+                              "cursor-pointer px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20",
+                              uploadingStatus['preposto'] && "opacity-50 pointer-events-none"
+                            )}>
+                              {uploadingStatus['preposto'] ? 'Enviando...' : <><Upload size={14} /> Upload</>}
+                              <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'preposto')} disabled={uploadingStatus['preposto']} />
+                            </label>
+                          </div>
+
+                          <div className="space-y-4">
+                            {documents.filter(d => d.uploadType === 'preposto').length === 0 ? (
+                              <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center">
+                                <FileCheck size={24} className="mx-auto text-slate-200 mb-2" />
+                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Nenhuma carta enviada</p>
+                              </div>
+                            ) : (
+                              documents.filter(d => d.uploadType === 'preposto').map(doc => (
+                                <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/20 transition-all">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+                                      <FileCheck size={18} />
+                                    </div>
+                                    <div className="overflow-hidden max-w-[150px] md:max-w-[200px]">
+                                      <p className="text-xs font-black text-deep-navy truncate" title={doc.fileName}>{doc.fileName}</p>
+                                      <p className="text-[9px] font-bold text-deep-navy/40 uppercase tracking-widest">{format(new Date(doc.created_at), "dd/MM/yyyy HH:mm")}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all" title="Ver Documento">
+                                      <Download size={16} />
+                                    </a>
+                                    <button onClick={() => handleDeleteDoc(doc.id)} className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all" title="Excluir">
+                                      <Trash size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-100 p-8 rounded-[2rem]">
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-primary shrink-0">
+                            <AlertTriangle size={20} />
+                          </div>
+                          <div>
+                            <h6 className="text-[10px] font-black text-deep-navy uppercase tracking-widest mb-1">Dica de Gestão</h6>
+                            <p className="text-[11px] font-bold text-deep-navy/60 leading-relaxed uppercase">Mantenha os documentos de representação sempre atualizados para evitar nulidades processuais e garantir a conformidade nas audiências.</p>
+                          </div>
                         </div>
                       </div>
                     </div>

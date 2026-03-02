@@ -1,0 +1,161 @@
+{
+    "sucesso": true,
+    "pessoa": {
+        "id": 9988776,
+        "nome": "Ana Clara Oliveira e Silva",
+        "dataNascimento": "1992-08-15T00:00:00",
+        "sexo": "F",
+        "localidade": {
+            "cidade": "São Paulo",
+            "estado": "SP",
+            "pais": "BR",
+            "logradouro": "Avenida Paulista, 1000",
+            "bairro": "Bela Vista",
+            "cep": "01310100"
+        },
+        "email": "ana.clara.dev@example.com",
+        "situacao": "Ativo",
+        "estaNoArquivo": false,
+        "foto": "https://storage.empregare.com/pessoas/sem-foto.png",
+        "telefone": "(11) 3222-1234",
+        "telefonePaisCode": "+55",
+        "celular": "(11) 98765-4321",
+        "celularPaisCode": "+55",
+        "estadoCivil": "Solteira",
+        "dataCadastro": "2025-10-10T09:30:00.00",
+        "dataAtualizacao": "2026-02-20T11:15:30.00",
+        "dataAtualizacaoContato": "2026-02-20T11:15:30.00",
+        "filhos": "Nenhum",
+        "privacidade": "Publico",
+        "exclusivo": false,
+        "timeZone": "America/Sao_Paulo",
+        "colaborador": null,
+        "aluno": null,
+        "vinculoExterno": {
+            "idExterno": null,
+            "empresaID": 0
+        },
+        "candidaturasAndamento": 2,
+        "candidatura": null,
+        "marcadores": [],
+        "curriculo": {
+            "redeSocial": [
+                {
+                    "url": "linkedin.com/in/anaclara-fake",
+                    "id": "LinkedIn"
+                },
+                {
+                    "url": "github.com/anaclara-fake",
+                    "id": "GitHub"
+                }
+            ],
+            "arquivoCurriculo": null,
+            "progresso": 90,
+            "sintese": "Desenvolvedora Frontend apaixonada por criar interfaces intuitivas e escaláveis. Especialista em React, TypeScript e Tailwind CSS, com forte foco na experiência do usuário e performance da aplicação.",
+            "pretensaoSalarial": "APartir8000",
+            "deficiencia": [],
+            "areas": [
+                {
+                    "id": 23,
+                    "nome": "Informática, TI, Telecomunicações"
+                },
+                {
+                    "id": 12,
+                    "nome": "Design, UI/UX"
+                }
+            ],
+            "formacao": [
+                {
+                    "grauID": 11,
+                    "local": "Universidade de São Paulo (USP)",
+                    "curso": "Sistemas de Informação",
+                    "dataInicio": "2012-02-01T00:00:00",
+                    "dataFim": "2016-12-01T00:00:00",
+                    "incompleto": false,
+                    "grauNome": "Bacharelado"
+                },
+                {
+                    "grauID": 13,
+                    "local": "FIAP",
+                    "curso": "Arquitetura de Software",
+                    "dataInicio": "2018-03-01T00:00:00",
+                    "dataFim": "2019-12-01T00:00:00",
+                    "incompleto": false,
+                    "grauNome": "Pós-Graduação"
+                }
+            ],
+            "experiencia": [
+                {
+                    "cidade": "São Paulo",
+                    "cargo": "Desenvolvedora Frontend Sênior",
+                    "atual": true,
+                    "dataInicio": "2021-05-01T00:00:00",
+                    "dataFim": "0001-01-01T00:00:00",
+                    "descricao": "Liderança técnica na modernização da arquitetura frontend, migrando projetos de React antigo para Next.js App Router com Tailwind. Criação de um Design System corporativo utilizado por mais de 5 equipes. Mentoria de desenvolvedores juniores.",
+                    "resultado": "Redução de 40% no tamanho do bundle e melhoria significativa na acessibilidade das aplicações.",
+                    "empresa": "TechCorp Inovações",
+                    "voluntario": false
+                },
+                {
+                    "cidade": "Campinas",
+                    "cargo": "Desenvolvedora React Pleno",
+                    "atual": false,
+                    "dataInicio": "2018-01-01T00:00:00",
+                    "dataFim": "2021-04-01T00:00:00",
+                    "descricao": "Desenvolvimento de dashboards financeiros e painéis administrativos utilizando React, Redux e Material UI. Integração diária com APIs RESTful e participação ativa em rituais ágeis (Scrum).",
+                    "resultado": "Entrega de 3 novos módulos de faturamento antes do prazo estipulado.",
+                    "empresa": "FinSys Soluções",
+                    "voluntario": false
+                },
+                {
+                    "cidade": "São Paulo",
+                    "cargo": "Desenvolvedora Web Júnior",
+                    "atual": false,
+                    "dataInicio": "2016-08-01T00:00:00",
+                    "dataFim": "2017-12-01T00:00:00",
+                    "descricao": "Manutenção de sites institucionais usando HTML5, CSS3, e Vanilla JavaScript. Criação de landing pages responsivas e campanhas de e-mail marketing.",
+                    "resultado": null,
+                    "empresa": "Agência Criativa Digital",
+                    "voluntario": false
+                }
+            ],
+            "curso": [
+                {
+                    "curso": "Masterclass de Acessibilidade Web (WCAG)",
+                    "local": "Alura",
+                    "anoConclusao": 2023,
+                    "horas": 40
+                }
+            ],
+            "informatica": [
+                {
+                    "nome": "React.js",
+                    "nivel": "Avançado"
+                },
+                {
+                    "nome": "TypeScript",
+                    "nivel": "Avançado"
+                },
+                {
+                    "nome": "Figma",
+                    "nivel": "Intermediário"
+                }
+            ],
+            "idioma": [
+                {
+                    "idioma": "Inglês",
+                    "nivelLeitura": "Fluente",
+                    "nivelEscrita": "Avançado",
+                    "nivelConversacao": "Avançado"
+                },
+                {
+                    "idioma": "Espanhol",
+                    "nivelLeitura": "Intermediário",
+                    "nivelEscrita": "Básico",
+                    "nivelConversacao": "Básico"
+                }
+            ],
+            "adicional": []
+        }
+    }
+}
