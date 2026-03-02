@@ -919,6 +919,94 @@ app.post('/api/auth/change-password', (req, res) => {
   }
 });
 
+// --- Auth Routes ---
+
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    if (!user) {
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+    }
+    if (user.password !== password) {
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+    }
+    if (!user.allowed) {
+      return res.status(403).json({ error: 'Acesso ainda não liberado. Aguarde aprovação de um gestor.' });
+    }
+    const { password: _, ...safeUser } = user;
+    res.json({ user: safeUser });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+});
+
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password, area } = req.body;
+  try {
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existing) {
+      return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+    }
+    const stmt = db.prepare('INSERT INTO users (name, email, password, role, allowed, area, requiresPasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(name, email, password, 'Usuario', 0, area, 1);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Erro ao processar registro.' });
+  }
+});
+
+app.post('/api/auth/change-password', (req, res) => {
+  const { email, newPassword } = req.body;
+  try {
+    const stmt = db.prepare('UPDATE users SET password = ?, requiresPasswordChange = 0 WHERE email = ?');
+    stmt.run(newPassword, email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Erro ao alterar senha.' });
+  }
+});
+
+// --- User Management Routes ---
+
+app.get('/api/users', (req, res) => {
+  try {
+    const users = db.prepare('SELECT id, name, email, role, allowed, area, approver, requiresPasswordChange, created_at FROM users ORDER BY created_at DESC').all();
+    res.json(users);
+  } catch (err) {
+    console.error('Get users error:', err);
+    res.status(500).json({ error: 'Erro ao buscar usuários.' });
+  }
+});
+
+app.put('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, role, allowed, area, approver, allowed_menus } = req.body;
+  try {
+    const stmt = db.prepare('UPDATE users SET name = ?, role = ?, allowed = ?, area = ?, approver = ?, allowed_menus = ? WHERE id = ?');
+    stmt.run(name, role, allowed, area, approver ? 1 : 0, allowed_menus || null, id);
+    const updated = db.prepare('SELECT id, name, email, role, allowed, area, approver, requiresPasswordChange, created_at FROM users WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (err) {
+    console.error('Update user error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+  }
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  try {
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Erro ao excluir usuário.' });
+  }
+});
+
 // Seed Initial Admin
 const checkAdmin = db.prepare('SELECT count(*) as count FROM users');
 const { count } = checkAdmin.get() as any;
