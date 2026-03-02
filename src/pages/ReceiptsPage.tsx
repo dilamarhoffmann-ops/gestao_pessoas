@@ -56,11 +56,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
             id: 'finance',
             section: 'Modelos Disponíveis',
             items: [
-                { id: 'adiantamento', label: 'Recibo de Ajuda de Custo', icon: <DollarSign />, subtext: 'Compensação de despesas operacionais' },
-                { id: 'gratificacao', label: 'Recibo de Diárias', icon: <CheckCircle />, subtext: 'Cobertura de despesas de viagem e estadia' },
-                { id: 'kardex', label: 'Recibo de Vale Transporte', icon: <FileText />, subtext: 'Comprovante de entrega de benefício de transporte' },
-                { id: 'pagamento', label: 'Recibo de Compra de Férias', icon: <Download />, subtext: 'Abono pecuniário e venda de dias de férias' },
-                { id: 'vt', label: 'Recibos Diversos', icon: <Globe />, subtext: 'Outros comprovantes e termos gerais' },
+                { id: 'vt', label: 'Modelo de Recibo Padrão', icon: <FileText />, subtext: 'Comprovante e termo geral de recebimento' },
             ]
         }
     ];
@@ -764,8 +760,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                         </div>
                                     </div>
 
-                                    {/* Pix and Items for Ajuda de Custo / Compra de Férias */}
-                                    {(selectedItem.id === 'adiantamento' || selectedItem.id === 'pagamento') && (
+                                    {/* Pix and Items for Modelo de Recibo Padrão */}
+                                    {(selectedItem.id === 'adiantamento' || selectedItem.id === 'pagamento' || selectedItem.id === 'vt') && (
                                         <div className="space-y-6 p-6 bg-primary/5 rounded-[2rem] border border-primary/10">
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-primary uppercase tracking-widest pl-1 flex items-center gap-2">
@@ -1289,8 +1285,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                 ({/* TODO: Adicionar valor por extenso se necessário */}), referente a <span className="font-black uppercase underline">{previewItem.payment_reason || previewItem.label}</span>.
                                             </div>
 
-                                            {/* Items Table for Ajuda de Custo / Compra de Férias */}
-                                            {(previewItem.id === 'adiantamento' || previewItem.id === 'pagamento') && previewItem.items && previewItem.items.length > 0 && (
+                                            {/* Items Table for Modelo de Recibo Padrão */}
+                                            {(previewItem.id === 'adiantamento' || previewItem.id === 'pagamento' || previewItem.id === 'vt') && previewItem.items && previewItem.items.length > 0 && (
                                                 <div className="mt-6 border border-slate-900">
                                                     <div className="bg-slate-900 text-white flex px-4 py-2 font-black uppercase text-[10px] tracking-widest">
                                                         <div className="flex-1">Descrição do Item</div>
