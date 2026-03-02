@@ -764,8 +764,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                         </div>
                                     </div>
 
-                                    {/* Pix and Items for Ajuda de Custo */}
-                                    {selectedItem.id === 'adiantamento' && (
+                                    {/* Pix and Items for Ajuda de Custo / Compra de Férias */}
+                                    {(selectedItem.id === 'adiantamento' || selectedItem.id === 'pagamento') && (
                                         <div className="space-y-6 p-6 bg-primary/5 rounded-[2rem] border border-primary/10">
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-primary uppercase tracking-widest pl-1 flex items-center gap-2">
@@ -1289,8 +1289,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                 ({/* TODO: Adicionar valor por extenso se necessário */}), referente a <span className="font-black uppercase underline">{previewItem.payment_reason || previewItem.label}</span>.
                                             </div>
 
-                                            {/* Items Table for Ajuda de Custo */}
-                                            {previewItem.id === 'adiantamento' && previewItem.items && previewItem.items.length > 0 && (
+                                            {/* Items Table for Ajuda de Custo / Compra de Férias */}
+                                            {(previewItem.id === 'adiantamento' || previewItem.id === 'pagamento') && previewItem.items && previewItem.items.length > 0 && (
                                                 <div className="mt-6 border border-slate-900">
                                                     <div className="bg-slate-900 text-white flex px-4 py-2 font-black uppercase text-[10px] tracking-widest">
                                                         <div className="flex-1">Descrição do Item</div>
