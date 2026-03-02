@@ -1,4 +1,5 @@
 {
+    "name": "gestor-gn",
     "framework": "vite",
     "rewrites": [
         {
