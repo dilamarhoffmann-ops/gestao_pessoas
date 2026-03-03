@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Check, FileText, Upload, Download, AlertCircle, X, DollarSign, Clock, Filter, Paperclip, CheckCircle, Search, Scan, Users, Calendar, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { discountsService } from '../lib/supabase-service';
 
 type Discount = {
   id: number;
@@ -28,9 +29,8 @@ export default function DiscountsPage() {
 
   const fetchDiscounts = async () => {
     try {
-      const res = await fetch('/api/discounts');
-      const data = await res.json();
-      setDiscounts(data);
+      const data = await discountsService.getAll();
+      setDiscounts(data as Discount[]);
     } catch (error) {
       console.error('Failed to fetch discounts', error);
     } finally {
@@ -39,11 +39,7 @@ export default function DiscountsPage() {
   };
 
   const handleStatusUpdate = async (id: number, nextStatus: string) => {
-    await fetch(`/api/discounts/${id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus }),
-    });
+    await discountsService.updateStatus(id, nextStatus);
     fetchDiscounts();
   };
 
@@ -338,17 +334,12 @@ function NewDiscountModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    await fetch('/api/discounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employee_name: lookupData.employee || formData.get('employee_name'),
-        type: formData.get('type'),
-        original_value: Number(formData.get('original_value')),
-        value: Number(formData.get('discount_value')),
-        installments: Number(formData.get('installments')),
-        status: 'step2_manager'
-      }),
+    await discountsService.create({
+      employee_name: (lookupData.employee || formData.get('employee_name')) as string,
+      type: formData.get('type') as string,
+      original_value: Number(formData.get('original_value')),
+      value: Number(formData.get('discount_value')),
+      installments: Number(formData.get('installments')),
     });
 
     onCreated();

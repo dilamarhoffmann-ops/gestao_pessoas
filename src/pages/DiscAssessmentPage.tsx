@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Send, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { candidatesService } from '../lib/supabase-service';
 
 const QUESTIONS = [
     { id: 1, text: "Eu me considero uma pessoa que foca sempre em resultados rápidos e não tenho medo de cobrar os outros.", type: "D" },
@@ -118,11 +119,7 @@ export default function DiscAssessmentPage() {
 
         // Attempt to save to backend
         try {
-            await fetch(`/api/candidates/${id}/disc`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ profile: calculatedResult.profile, rawScores: answers })
-            });
+            await candidatesService.updateDisc(Number(id), calculatedResult.profile);
         } catch (e) {
             console.error("Failed to save DISC profile", e);
         }

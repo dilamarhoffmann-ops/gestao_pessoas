@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { lawsuitsService } from '../lib/supabase-service';
 
 type Lawsuit = {
   id: number;
@@ -65,9 +66,8 @@ export default function LawsuitsPage() {
 
   const fetchLawsuits = async () => {
     try {
-      const res = await fetch('/api/lawsuits');
-      const data = await res.json();
-      setLawsuits(data);
+      const data = await lawsuitsService.getAll();
+      setLawsuits(data as Lawsuit[]);
     } catch (error) {
       console.error("Error fetching lawsuits:", error);
     }
@@ -80,11 +80,11 @@ export default function LawsuitsPage() {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/lawsuits/${deleteTarget.id}`, { method: 'DELETE' });
-      if (res.ok) fetchLawsuits();
-      else alert('Erro ao excluir registro.');
+      await lawsuitsService.delete(deleteTarget.id);
+      fetchLawsuits();
     } catch (error) {
       console.error("Delete error:", error);
+      alert('Erro ao excluir registro.');
     } finally {
       setDeleteTarget(null);
     }
@@ -346,7 +346,7 @@ function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onCon
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header faixa */}
-        <div className="bg-red-500/5 px-8 pt-8 pb-6 flex gap-5 items-start">
+        <div className="bg-red-500/5 px-6 pt-6 pb-4 flex gap-4 items-start">
           <div className="w-12 h-12 bg-red-100 flex items-center justify-center text-red-500 shrink-0 mt-0.5">
             <AlertOctagon size={24} />
           </div>
@@ -357,7 +357,7 @@ function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onCon
         </div>
 
         {/* Body */}
-        <div className="px-8 pb-8 space-y-6">
+        <div className="px-6 pb-6 space-y-4">
           <div className="border border-red-100 bg-red-50/50 p-4">
             <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Registro Alvo</p>
             <p className="text-sm font-black text-deep-navy truncate">{name || 'Processo sem identificação'}</p>
@@ -737,9 +737,8 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
   const fetchDocuments = async () => {
     if (!initialData) return;
     try {
-      const res = await fetch(`/api/lawsuits/${initialData.id}/documents`);
-      const data = await res.json();
-      setDocuments(data);
+      const data = await lawsuitsService.getDocuments(initialData.id);
+      setDocuments(data as any[]);
     } catch (error) {
       console.error("Error fetching docs:", error);
     }
@@ -750,25 +749,15 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
     if (!file || !initialData) return;
 
     setUploadingStatus(prev => ({ ...prev, [type]: true }));
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploadType', type);
 
     try {
-      const res = await fetch(`/api/lawsuits/${initialData.id}/documents`, {
-        method: 'POST',
-        body: formData
-      });
-      if (res.ok) {
-        fetchDocuments();
-      } else {
-        alert('Erro no upload do arquivo.');
-      }
+      await lawsuitsService.addDocument(initialData.id, file, type);
+      fetchDocuments();
     } catch (error) {
       console.error("Upload error:", error);
+      alert('Erro no upload do arquivo.');
     } finally {
       setUploadingStatus(prev => ({ ...prev, [type]: false }));
-      // Reset input
       e.target.value = '';
     }
   };
@@ -776,8 +765,8 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
   const handleDeleteDoc = async (docId: number) => {
     if (!initialData || !window.confirm('Deseja excluir este documento?')) return;
     try {
-      const res = await fetch(`/api/lawsuits/${initialData.id}/documents/${docId}`, { method: 'DELETE' });
-      if (res.ok) fetchDocuments();
+      await lawsuitsService.deleteDocument(docId);
+      fetchDocuments();
     } catch (error) {
       console.error("Delete doc error:", error);
     }
@@ -798,33 +787,17 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
       submissionData[field] = (val === '' || val === undefined || val === null) ? null : Number(val);
     });
 
-    const url = initialData ? `/api/lawsuits/${initialData.id}` : '/api/lawsuits';
-    const method = initialData ? 'PUT' : 'POST';
-
     try {
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionData),
-      });
-
-      const contentType = res.headers.get("content-type");
-      if (res.ok) {
-        onCreated();
-        onClose();
+      if (initialData) {
+        await lawsuitsService.update(initialData.id, submissionData);
       } else {
-        let errorMessage = 'Erro desconhecido';
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-          const err = await res.json();
-          errorMessage = err.error || errorMessage;
-        } else {
-          errorMessage = await res.text();
-        }
-        alert(`Erro ao salvar: ${errorMessage}`);
+        await lawsuitsService.create(submissionData);
       }
-    } catch (error) {
+      onCreated();
+      onClose();
+    } catch (error: any) {
       console.error('Submit error:', error);
-      alert('Falha na comunicação com o servidor. Verifique se o backend está rodando.');
+      alert(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

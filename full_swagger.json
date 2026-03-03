@@ -1,0 +1,2380 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "v1",
+    "title": "Empregare.Corporate API"
+  },
+  "host": "corporate.empregare.com",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/api/admissao/documento/baixar": {
+      "get": {
+        "tags": [
+          "AdmissaoApi"
+        ],
+        "operationId": "AdmissaoApi_BaixarDocumento",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "admissaoID",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "nomeArquivo",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/admissao/detalhes/{id}": {
+      "get": {
+        "tags": [
+          "AdmissaoApi"
+        ],
+        "operationId": "AdmissaoApi_ObterDetalhes",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/admissao/finalizar/{id}": {
+      "post": {
+        "tags": [
+          "AdmissaoApi"
+        ],
+        "operationId": "AdmissaoApi_Finalizar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/admissao/cancelar/{id}": {
+      "post": {
+        "tags": [
+          "AdmissaoApi"
+        ],
+        "operationId": "AdmissaoApi_Cancelar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/admissao/salvar": {
+      "post": {
+        "tags": [
+          "AdmissaoApi"
+        ],
+        "operationId": "AdmissaoApi_Salvar",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "modelInput",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AdmissaoSalvarViewModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/admissao-template/listar": {
+      "get": {
+        "tags": [
+          "AdmissaoTemplateApi"
+        ],
+        "operationId": "AdmissaoTemplateApi_Listar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "situacao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/aluno/importar-matricula/individual": {
+      "post": {
+        "tags": [
+          "AlunoApi"
+        ],
+        "summary": "Insere uma matrícula de aluno individualmente. Essa função não apaga a lista de matrículas já cadastradas.",
+        "operationId": "AlunoApi_Insert",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "body",
+            "description": "Número da matrícula do aluno",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/StudentsIndividualViewModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/aluno/importar-matricula/resetar": {
+      "post": {
+        "tags": [
+          "AlunoApi"
+        ],
+        "summary": "Apaga todas as matrículas vinculadas na conta e adiciona as novas que foram informadas.",
+        "operationId": "AlunoApi_Reset",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "matriculas",
+            "in": "body",
+            "description": "Lista de matrículas no formato: [\"matrícula 1\", \"matrícula 2\"]",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/beneficios/listar": {
+      "get": {
+        "tags": [
+          "BeneficiosApi"
+        ],
+        "operationId": "BeneficiosApi_ObterTodos",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/campos-dinamicos/listar": {
+      "get": {
+        "tags": [
+          "CamposDinamicosApi"
+        ],
+        "operationId": "CamposDinamicosApi_ObterTodos",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/cidades/buscar": {
+      "get": {
+        "tags": [
+          "CidadesApi"
+        ],
+        "operationId": "CidadesApi_Buscar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/cliente/listar": {
+      "get": {
+        "tags": [
+          "ClientesApi"
+        ],
+        "operationId": "ClientesApi_Listar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.nome",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.situacao",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/cliente/empresa/criar": {
+      "post": {
+        "tags": [
+          "ClientesApi"
+        ],
+        "operationId": "ClientesApi_Criar",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CriarEmpresaClienteViewModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/colaborador/importar-cpf/individual": {
+      "post": {
+        "tags": [
+          "ColaboradoresApi"
+        ],
+        "summary": "Insere um CPF de colaborador individualmente. Essa função não apaga a lista de CPFs já cadastrada.",
+        "operationId": "ColaboradoresApi_Insert",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "cpf",
+            "in": "body",
+            "description": "Número do CPF do colaborador, poderá conter ou não pontos e traços.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/colaborador/importar-cpf/resetar": {
+      "post": {
+        "tags": [
+          "ColaboradoresApi"
+        ],
+        "summary": "Apaga todos os CPFs vinculados na conta e adiciona os novos que foram informados.",
+        "operationId": "ColaboradoresApi_Reset",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "cpfs",
+            "in": "body",
+            "description": "Lista de Cpfs no formato: [\"cpf 1\", \"cpf 2\"]",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/filial/listar/{unidadeNegocioID}": {
+      "get": {
+        "tags": [
+          "FilialApi"
+        ],
+        "operationId": "FilialApi_Listar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "unidadeNegocioID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/token": {
+      "post": {
+        "tags": [
+          "LoginApi"
+        ],
+        "summary": "Login para gerar o token bearer com expiração de 12 horas. Informar o token no header dos outros endpoints no formato: bearer tokenGerado",
+        "operationId": "LoginApi_Index",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "body",
+            "description": "Token de autenticação e código da empresa gerado no painel da empresa",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/LoginViewModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/pessoa/detalhes/{PessoaID}": {
+      "get": {
+        "tags": [
+          "PessoasApi"
+        ],
+        "operationId": "PessoasApi_Detalhes",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "PessoaID",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "model.pessoaID",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.vagaID",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/pessoa/obterCpfDataNascimento": {
+      "get": {
+        "tags": [
+          "PessoasApi"
+        ],
+        "operationId": "PessoasApi_ObterPorCpfDataNascimento",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.cpf",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.dataNascimento",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/questionario/ObterQuestionarioResposta": {
+      "get": {
+        "tags": [
+          "QuestionarioApi"
+        ],
+        "operationId": "QuestionarioApi_ObterQuestionarioResposta",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "respostaID",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/requisicao/listar": {
+      "get": {
+        "tags": [
+          "RequisicaoApi"
+        ],
+        "operationId": "RequisicaoApi_Get",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.pag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.itensPag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.situacao",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9
+              ]
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/requisicao/detalhes/{id}": {
+      "get": {
+        "tags": [
+          "RequisicaoApi"
+        ],
+        "operationId": "RequisicaoApi_Details",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/requisicao/motivos": {
+      "get": {
+        "tags": [
+          "RequisicaoApi"
+        ],
+        "operationId": "RequisicaoApi_ObterTodos",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/setores/listar": {
+      "get": {
+        "tags": [
+          "SetoresApi"
+        ],
+        "operationId": "SetoresApi_ObterTodos",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/unidade-negocio/listar": {
+      "get": {
+        "tags": [
+          "UnidadeNegocioApi"
+        ],
+        "operationId": "UnidadeNegocioApi_Listar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/vaga/listar": {
+      "get": {
+        "tags": [
+          "VagasApi"
+        ],
+        "operationId": "VagasApi_Listar",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.pag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.itensPag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.situacao",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ]
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "model.pitID",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.searchAfter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/vaga/listarBI": {
+      "get": {
+        "tags": [
+          "VagasApi"
+        ],
+        "operationId": "VagasApi_ListarPowerBI",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model.pag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.itensPag",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "model.query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.situacao",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ]
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "model.pitID",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model.searchAfter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/vaga/detalhes/{id}": {
+      "get": {
+        "tags": [
+          "VagasApi"
+        ],
+        "operationId": "VagasApi_Detalhes",
+        "consumes": [],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/vaga/criar": {
+      "post": {
+        "tags": [
+          "VagasApi"
+        ],
+        "operationId": "VagasApi_Criar",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CriarVagaViewModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AdmissaoSalvarViewModel": {
+      "type": "object",
+      "properties": {
+        "CamposDinamicosConteudo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CampoDinamicoInput"
+          }
+        },
+        "CampoDinamicosDescricao": {
+          "type": "string"
+        },
+        "CampoDinamicosDescricaoV2": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "TokenExterno": {
+          "format": "uuid",
+          "type": "string",
+          "example": "00000000-0000-0000-0000-000000000000"
+        },
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoTemplateID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "PessoaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "VagaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "NomeSocial": {
+          "type": "string"
+        },
+        "Nome": {
+          "type": "string"
+        },
+        "Email": {
+          "type": "string"
+        },
+        "Sexo": {
+          "type": "string"
+        },
+        "Celular": {
+          "type": "string"
+        },
+        "Cpf": {
+          "type": "string"
+        },
+        "Foto": {
+          "type": "string"
+        },
+        "DataNascimento": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "Situacao": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "type": "integer"
+        },
+        "SituacaoAnteriorCancelado": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "type": "integer"
+        },
+        "TotalRespondido": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "TotalInvalido": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "TotalPerguntas": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AceitouTermos": {
+          "type": "boolean"
+        },
+        "AdmissaoEtapaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "RacaCor": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "type": "integer"
+        },
+        "RacaCorFormatado": {
+          "type": "string",
+          "readOnly": true
+        },
+        "EstadoCivil": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "type": "integer"
+        },
+        "EstadoCivilFormatado": {
+          "type": "string",
+          "readOnly": true
+        },
+        "PossuiDependente": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "DataCadastro": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataAtualizacao": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataFinalizacao": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataCancelamento": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataEnvio": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataExpira": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "DataExpiraContrato": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "Pausado": {
+          "type": "boolean"
+        },
+        "Confidencial": {
+          "type": "boolean"
+        },
+        "IDExterno": {
+          "type": "string"
+        },
+        "Matricula": {
+          "type": "string"
+        },
+        "CBO": {
+          "type": "string"
+        },
+        "Excluido": {
+          "type": "boolean"
+        },
+        "PaisNascimento": {
+          "type": "string"
+        },
+        "PaisNacionalidade": {
+          "type": "string"
+        },
+        "PossuiDeficiencia": {
+          "type": "boolean"
+        },
+        "DeficienciaFisica": {
+          "type": "boolean"
+        },
+        "DeficienciaVisual": {
+          "type": "boolean"
+        },
+        "DeficienciaAuditiva": {
+          "type": "boolean"
+        },
+        "DeficienciaMental": {
+          "type": "boolean"
+        },
+        "DeficienciaIntelectual": {
+          "type": "boolean"
+        },
+        "ReabilitadoINSS": {
+          "type": "boolean"
+        },
+        "TimeZone": {
+          "type": "string"
+        },
+        "Idioma": {
+          "type": "string"
+        },
+        "SituacaoCorrecao": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "UnidadeNegocioID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "FilialID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmpresaClienteID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "ArquivoLaudoDeficiencia": {
+          "type": "string"
+        },
+        "CargoPersonalizado": {
+          "type": "string"
+        },
+        "UnidadeNegocioNome": {
+          "type": "string"
+        },
+        "FilialNome": {
+          "type": "string"
+        },
+        "EmpresaClienteNome": {
+          "type": "string"
+        },
+        "UnidadeNegocioCnpj": {
+          "type": "string"
+        },
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoTemplateTitulo": {
+          "type": "string"
+        },
+        "PessoaIDCript": {
+          "type": "string",
+          "readOnly": true
+        },
+        "AdmissaoIDCript": {
+          "type": "string",
+          "readOnly": true
+        },
+        "VagaIDCript": {
+          "type": "string"
+        },
+        "VagaTitulo": {
+          "type": "string"
+        },
+        "Cargo": {
+          "type": "string"
+        },
+        "Candidatos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdmissaoCandidatoViewModel"
+          }
+        },
+        "ImportacaoCandidatoTipo": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "UsuariosResponsaveis": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "Total": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "UsuariosResponsaveisNomes": {
+          "type": "string"
+        },
+        "VagaTituloID": {
+          "type": "string",
+          "readOnly": true
+        },
+        "FotoString": {
+          "type": "string",
+          "readOnly": true
+        },
+        "TipoCredito": {
+          "format": "int32",
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "ConteudoResposta": {
+          "type": "string"
+        },
+        "AlternativasResposta": {
+          "type": "string"
+        },
+        "TotalRespondidoFormatado": {
+          "type": "string",
+          "readOnly": true
+        },
+        "CargoOriginal": {
+          "type": "string"
+        },
+        "VagaIDCriptOriginal": {
+          "type": "string"
+        },
+        "AdmissaoTemplateComunicacaoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "DataExpiraFormatado": {
+          "type": "string",
+          "readOnly": true
+        },
+        "CelularSemCaracteresEspeciais": {
+          "type": "string",
+          "readOnly": true
+        },
+        "HoraExpira": {
+          "type": "string"
+        },
+        "Respostas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdmissaoResposta"
+          }
+        },
+        "DeficienciasTexto": {
+          "type": "string",
+          "readOnly": true
+        },
+        "DependentesGeradosJson": {
+          "type": "string"
+        },
+        "UnidadeNegocio": {
+          "$ref": "#/definitions/UnidadeNegocio"
+        },
+        "Dia": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Mes": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Ano": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Idade": {
+          "format": "int32",
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "CampoDinamicoInput": {
+      "type": "object",
+      "properties": {
+        "Id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Valores": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "AdmissaoCandidatoViewModel": {
+      "type": "object",
+      "properties": {
+        "PessoaIDCript": {
+          "type": "string"
+        },
+        "Email": {
+          "type": "string"
+        },
+        "Celular": {
+          "type": "string"
+        },
+        "Nome": {
+          "type": "string"
+        },
+        "Foto": {
+          "type": "string"
+        }
+      }
+    },
+    "AdmissaoResposta": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoDependenteID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoPerguntaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Conteudo": {
+          "type": "string"
+        },
+        "Situacao": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "type": "integer"
+        },
+        "NaoPossui": {
+          "type": "boolean"
+        },
+        "NaoAplica": {
+          "type": "boolean"
+        },
+        "AlternativasJson": {
+          "type": "string"
+        },
+        "ComentarioEmpresa": {
+          "type": "string"
+        },
+        "ErroLeituraOCR": {
+          "type": "boolean"
+        },
+        "IgnoradoPorRegraCondicional": {
+          "type": "boolean"
+        },
+        "Pergunta": {
+          "$ref": "#/definitions/AdmissaoPergunta"
+        },
+        "AdmissaoGrupoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoGrupoEnum": {
+          "type": "string",
+          "readOnly": true
+        },
+        "AdmissaoEtapaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "TokenDetalhesResposta": {
+          "type": "string",
+          "readOnly": true
+        },
+        "Dependente": {
+          "$ref": "#/definitions/AdmissaoDependente"
+        },
+        "AdmissaoTokenExterno": {
+          "format": "uuid",
+          "type": "string",
+          "example": "00000000-0000-0000-0000-000000000000"
+        },
+        "NovaSituacaoDependente": {
+          "format": "int32",
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "TotalRespondida": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Alternativas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdmissaoPerguntaAlternativa"
+          },
+          "readOnly": true
+        },
+        "AdmissaoTemplateID": {
+          "format": "int32",
+          "type": "integer"
+        }
+      }
+    },
+    "UnidadeNegocio": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Titulo": {
+          "type": "string"
+        },
+        "LinkedinID": {
+          "type": "string"
+        },
+        "FacebookID": {
+          "type": "string"
+        },
+        "Site": {
+          "type": "string"
+        },
+        "Logo": {
+          "type": "string"
+        },
+        "Cnpj": {
+          "type": "string"
+        },
+        "NomeDivulgacao": {
+          "type": "string"
+        },
+        "DivulgarEmpresa": {
+          "type": "boolean"
+        },
+        "TotalFilial": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "LimiteInscricao": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "HotSiteUrl": {
+          "type": "string"
+        },
+        "UnidadeNegocioLogo": {
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
+    "AdmissaoPergunta": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Titulo": {
+          "type": "string"
+        },
+        "Descricao": {
+          "type": "string"
+        },
+        "TipoInput": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "type": "integer"
+        },
+        "Mascara": {
+          "type": "string"
+        },
+        "Validacao": {
+          "type": "string"
+        },
+        "TipoPergunta": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "type": "integer"
+        },
+        "TipoPerguntaNome": {
+          "type": "string",
+          "readOnly": true
+        },
+        "TipoInputDescricao": {
+          "type": "string",
+          "readOnly": true
+        },
+        "TipoPerguntaDescricao": {
+          "type": "string",
+          "readOnly": true
+        },
+        "GrupoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AlternativasJson": {
+          "type": "string"
+        },
+        "Ativo": {
+          "type": "boolean"
+        },
+        "ValidacaoAutomatica": {
+          "type": "boolean"
+        },
+        "Excluido": {
+          "type": "boolean"
+        },
+        "Alternativas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdmissaoPerguntaAlternativa"
+          }
+        },
+        "GrupoNome": {
+          "type": "string"
+        },
+        "Icone": {
+          "type": "string"
+        },
+        "UsoInterno": {
+          "type": "boolean"
+        },
+        "Ordem": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "TipoInputHtml": {
+          "type": "string",
+          "readOnly": true
+        },
+        "ConteudoResposta": {
+          "type": "string"
+        },
+        "AlternativasResposta": {
+          "type": "string"
+        },
+        "AdmissaoRespostaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "NaoAplica": {
+          "type": "boolean"
+        },
+        "NaoPossui": {
+          "type": "boolean"
+        },
+        "NomeExterno": {
+          "type": "string"
+        },
+        "RegrasJson": {
+          "type": "string"
+        },
+        "Obrigatorio": {
+          "type": "boolean"
+        },
+        "DesativadaOuExcluida": {
+          "type": "boolean",
+          "readOnly": true
+        },
+        "ComentarioEmpresa": {
+          "type": "string"
+        },
+        "SituacaoResposta": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "type": "integer"
+        }
+      }
+    },
+    "AdmissaoDependente": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "AdmissaoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Nome": {
+          "type": "string"
+        },
+        "GrauParentesco": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            6,
+            9,
+            10,
+            11,
+            12,
+            99
+          ],
+          "type": "integer"
+        },
+        "DataNascimento": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "Nacionalidade": {
+          "format": "int32",
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "Excluido": {
+          "type": "boolean"
+        },
+        "Situacao": {
+          "format": "int32",
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "Cpf": {
+          "type": "string"
+        },
+        "Sexo": {
+          "type": "string"
+        },
+        "DependenteIR": {
+          "type": "boolean"
+        },
+        "DependenteSalarioFamilia": {
+          "type": "boolean"
+        },
+        "PossuiIncapacidade": {
+          "type": "boolean"
+        },
+        "PossuiRespostasInvalidas": {
+          "type": "boolean"
+        },
+        "Dia": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Mes": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Ano": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Respostas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdmissaoResposta"
+          }
+        }
+      }
+    },
+    "AdmissaoPerguntaAlternativa": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "type": "string"
+        },
+        "Descricao": {
+          "type": "string"
+        },
+        "Ordem": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Excluido": {
+          "type": "boolean"
+        }
+      }
+    },
+    "StudentsIndividualViewModel": {
+      "type": "object",
+      "properties": {
+        "Matricula": {
+          "type": "string"
+        }
+      }
+    },
+    "ClientesListarViewModel": {
+      "type": "object",
+      "properties": {
+        "Nome": {
+          "type": "string"
+        },
+        "Situacao": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "CriarEmpresaClienteViewModel": {
+      "required": [
+        "Nome",
+        "Situacao"
+      ],
+      "type": "object",
+      "properties": {
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Nome": {
+          "description": "Nome Fantasia da Empresa Cliente",
+          "type": "string"
+        },
+        "CpfCnpj": {
+          "type": "string"
+        },
+        "Responsavel": {
+          "description": "Nome do Responsável da Empresa Cliente",
+          "type": "string"
+        },
+        "Telefone": {
+          "type": "string"
+        },
+        "Ramal": {
+          "type": "string"
+        },
+        "Email": {
+          "type": "string"
+        },
+        "Cep": {
+          "type": "string"
+        },
+        "Logradouro": {
+          "type": "string"
+        },
+        "Bairro": {
+          "type": "string"
+        },
+        "Numero": {
+          "type": "string"
+        },
+        "Complemento": {
+          "type": "string"
+        },
+        "CidadeID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Situacao": {
+          "format": "int32",
+          "description": "Situação da Empresa Cliente\r\nPendente - 1, Ativa - 2, Desativada - 3",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "Descricao": {
+          "description": "Descrição da Empresa Cliente",
+          "type": "string"
+        },
+        "Segmentos": {
+          "description": "Categorias da Empresa",
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "LoginViewModel": {
+      "type": "object",
+      "properties": {
+        "Token": {
+          "type": "string"
+        },
+        "EmpresaID": {
+          "type": "string"
+        }
+      }
+    },
+    "PessoaDetalhesViewModel": {
+      "type": "object",
+      "properties": {
+        "PessoaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "VagaID": {
+          "format": "int32",
+          "type": "integer"
+        }
+      }
+    },
+    "PessoaObterPorCpfDataNascimentoViewModel": {
+      "type": "object",
+      "properties": {
+        "Cpf": {
+          "type": "string"
+        },
+        "DataNascimento": {
+          "format": "date-time",
+          "type": "string"
+        }
+      }
+    },
+    "RequisitionGetViewModel": {
+      "type": "object",
+      "properties": {
+        "Pag": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "ItensPag": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Query": {
+          "type": "string"
+        },
+        "Situacao": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "VagaGetViewModel": {
+      "type": "object",
+      "properties": {
+        "Pag": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "ItensPag": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Query": {
+          "type": "string"
+        },
+        "Situacao": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "type": "integer"
+          }
+        },
+        "PitID": {
+          "type": "string"
+        },
+        "SearchAfter": {
+          "type": "string"
+        }
+      }
+    },
+    "CriarVagaViewModel": {
+      "type": "object",
+      "properties": {
+        "RequisicaoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "Cidades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CidadeComNumeroVagas"
+          }
+        },
+        "Setores": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "Titulo": {
+          "type": "string"
+        },
+        "TituloAdicional": {
+          "type": "string"
+        },
+        "MotivoID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmailsGestores": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "SelecaoAsCegas": {
+          "type": "boolean"
+        },
+        "Horario": {
+          "type": "string"
+        },
+        "NivelHierarquico": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            7,
+            8,
+            10,
+            11,
+            12
+          ],
+          "type": "integer"
+        },
+        "RegimeContratacao": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "type": "integer"
+        },
+        "ModalidadeTrabalho": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "type": "integer"
+        },
+        "Moeda": {
+          "type": "string"
+        },
+        "SalarioInicial": {
+          "format": "double",
+          "type": "number"
+        },
+        "SalarioFinal": {
+          "format": "double",
+          "type": "number"
+        },
+        "SalarioCombinar": {
+          "type": "boolean"
+        },
+        "Descricao": {
+          "type": "string"
+        },
+        "Requisitos": {
+          "type": "string"
+        },
+        "Beneficios": {
+          "type": "array",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "TipoDeficiencia": {
+          "format": "int32",
+          "enum": [
+            0,
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "IDAdicional": {
+          "type": "string"
+        },
+        "Confidencial": {
+          "type": "boolean"
+        },
+        "Rascunho": {
+          "type": "boolean"
+        },
+        "DataProgramada": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "TipoRecrutamento": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "type": "integer"
+        },
+        "LocalDivulgacao": {
+          "format": "int32",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "MetaEncerramento": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "OcultarIndicador": {
+          "type": "boolean"
+        },
+        "CurriculoCompleto": {
+          "type": "boolean"
+        },
+        "AlertaEmail": {
+          "type": "boolean"
+        },
+        "AlertaEmailCancelado": {
+          "type": "boolean"
+        },
+        "AlertaEmailAdicional": {
+          "type": "string"
+        },
+        "ExibirEtapaCandidato": {
+          "type": "boolean"
+        },
+        "Expiracao": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "ConfiguracaoVaga": {
+          "$ref": "#/definitions/ConfiguracaoVaga"
+        },
+        "CamposDinamicos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CamposDinamicosConteudo"
+          }
+        }
+      }
+    },
+    "CidadeComNumeroVagas": {
+      "type": "object",
+      "properties": {
+        "CidadeID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "NumeroDeVagas": {
+          "format": "int32",
+          "type": "integer"
+        }
+      }
+    },
+    "ConfiguracaoVaga": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "EmpresaID": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "OcultaNivelHierarquico": {
+          "type": "boolean"
+        },
+        "OcultaHorario": {
+          "type": "boolean"
+        },
+        "OcultaRegimeContratacao": {
+          "type": "boolean"
+        },
+        "OcultaSalario": {
+          "type": "boolean"
+        },
+        "OcultaBeneficios": {
+          "type": "boolean"
+        },
+        "EtapaPadrao": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CamposDinamicosConteudo": {
+      "type": "object",
+      "properties": {
+        "Valores": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ID": {
+          "format": "int32",
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "description": "JWT Authorization header using the Bearer scheme.",
+      "name": "Authorization",
+      "in": "header"
+    }
+  }
+}

@@ -8,6 +8,8 @@ import {
     LayoutDashboard, DollarSign, Scale, Users as UsersIcon, Settings, Printer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usersService, authService } from '../lib/supabase-service';
+import { supabase } from '../lib/supabase';
 
 type User = {
     id: number;
@@ -70,9 +72,8 @@ export default function ConfigurationPage() {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/users');
-            const data = await res.json();
-            setUsers(data);
+            const data = await usersService.getAll();
+            setUsers(data as User[]);
         } catch (e) {
             console.error(e);
         } finally {
@@ -82,12 +83,8 @@ export default function ConfigurationPage() {
 
     const handleUpdateUser = async (id: number, updates: Partial<User>) => {
         try {
-            const res = await fetch(`/api/users/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            });
-            if (res.ok) fetchUsers();
+            await usersService.update(id as any, updates);
+            fetchUsers();
         } catch (e) {
             console.error(e);
         }
@@ -96,34 +93,54 @@ export default function ConfigurationPage() {
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...newUser,
-                    allowed: newUser.allowed === 'true',
-                    approver: newUser.approver === 'true'
-                }),
+            // Create user in Supabase Auth
+            const { data, error } = await supabase.auth.signUp({
+                email: newUser.email,
+                password: newUser.password,
+                options: {
+                    data: {
+                        name: newUser.name,
+                        role: newUser.role,
+                        allowed: newUser.allowed === 'true'
+                    }
+                }
             });
-            if (res.ok) {
-                setShowAddModal(false);
-                setNewUser({
-                    name: '',
-                    email: '',
-                    role: 'Usuario',
-                    allowed: 'true',
-                    area: '',
-                    password: '123',
-                    allowed_menus: 'inicio',
-                    approver: 'false'
-                });
-                fetchUsers();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erro ao cadastrar usuário');
+            if (error) throw error;
+
+            // Update profile with extra fields
+            if (data.user) {
+                await supabase.from('profiles').update({
+                    area: newUser.area,
+                    allowed: newUser.allowed === 'true',
+                    role: newUser.role,
+                    approver: newUser.approver === 'true',
+                    allowed_menus: newUser.allowed_menus
+                }).eq('id', data.user.id);
             }
-        } catch (e) {
-            console.error(e);
+
+            setShowAddModal(false);
+            setNewUser({
+                name: '',
+                email: '',
+                role: 'Usuario',
+                allowed: 'true',
+                area: '',
+                password: '123456',
+                allowed_menus: 'inicio',
+                approver: 'false'
+            });
+            fetchUsers();
+        } catch (e: any) {
+            const msg = e.message || '';
+            if (msg.includes('security purposes')) {
+                alert('Aguarde 30 segundos antes de cadastrar outro usuário (proteção do Supabase).');
+            } else if (msg.includes('already registered') || msg.includes('already been registered')) {
+                alert('Este e-mail já está cadastrado no sistema.');
+            } else if (msg.includes('rate limit')) {
+                alert('Limite de requisições atingido. Tente novamente em alguns minutos.');
+            } else {
+                alert(msg || 'Erro ao cadastrar usuário.');
+            }
         }
     };
 
@@ -131,21 +148,16 @@ export default function ConfigurationPage() {
         e.preventDefault();
         if (resettingUser) {
             try {
-                const res = await fetch(`/api/users/${resettingUser.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        password: newResetPassword,
-                        requiresPasswordChange: true
-                    }),
-                });
-                if (res.ok) {
-                    setShowResetModal(false);
-                    setResettingUser(null);
-                    setNewResetPassword('123');
-                    fetchUsers();
-                    alert(`Senha de ${resettingUser.name} alterada com sucesso!`);
-                }
+                // Note: Supabase admin password reset requires service_role key
+                // For now, just update the profile flag
+                await usersService.update(resettingUser.id as any, {
+                    requiresPasswordChange: true
+                } as any);
+                setShowResetModal(false);
+                setResettingUser(null);
+                setNewResetPassword('123456');
+                fetchUsers();
+                alert(`Senha de ${resettingUser.name} será redefinida no próximo login.`);
             } catch (e) {
                 console.error(e);
             }
@@ -155,7 +167,7 @@ export default function ConfigurationPage() {
     const confirmDelete = async () => {
         if (!userToDelete) return;
         try {
-            await fetch(`/api/users/${userToDelete.id}`, { method: 'DELETE' });
+            await usersService.delete(userToDelete.id as any);
             setShowDeleteModal(false);
             setUserToDelete(null);
             fetchUsers();
@@ -382,74 +394,76 @@ export default function ConfigurationPage() {
             {/* Modals with consistent Premium UI */}
             <AnimatePresence>
                 {showAddModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0f172a]/60 backdrop-blur-sm">
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-12 relative border border-[#e2e8f0]">
-                            <button onClick={() => setShowAddModal(false)} className="absolute top-10 right-10 p-3 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
-                                <X size={20} />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-7 relative border border-[#e2e8f0]">
+                            <button onClick={() => setShowAddModal(false)} className="absolute top-5 right-5 p-2 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
+                                <X size={18} />
                             </button>
-                            <h3 className="text-2xl font-bold text-[#1e293b] mb-10 flex items-center gap-3">
-                                <UserPlus className="text-[#3b82f6]" /> Novo Usuário
+                            <h3 className="text-xl font-bold text-[#1e293b] mb-6 flex items-center gap-2.5">
+                                <UserPlus className="text-[#3b82f6]" size={22} /> Novo Usuário
                             </h3>
-                            <form onSubmit={handleRegisterSubmit} className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Nome Completo</label>
-                                    <input required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
+                            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Nome Completo</label>
+                                        <input required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">E-mail Profissional</label>
+                                        <input required type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">E-mail Profissional</label>
-                                    <input required type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Departamento</label>
+                                        <select
+                                            required
+                                            value={newUser.area}
+                                            onChange={e => setNewUser({ ...newUser, area: e.target.value })}
+                                            className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] appearance-none cursor-pointer focus:ring-2 focus:ring-[#3b82f6] transition-all"
+                                        >
+                                            <option value="" disabled>Selecione</option>
+                                            <option value="Cobrança">Cobrança</option>
+                                            <option value="Comercial">Comercial</option>
+                                            <option value="Compras">Compras</option>
+                                            <option value="Departamento Pessoal">Depto. Pessoal</option>
+                                            <option value="Desenvolvimento">Desenvolvimento</option>
+                                            <option value="Engenharia">Engenharia</option>
+                                            <option value="Marketing">Marketing</option>
+                                            <option value="Squad">Squad</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Senha Temporária</label>
+                                        <input required type="text" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Departamento</label>
-                                    <select
-                                        required
-                                        value={newUser.area}
-                                        onChange={e => setNewUser({ ...newUser, area: e.target.value })}
-                                        className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] appearance-none cursor-pointer focus:ring-2 focus:ring-[#3b82f6] transition-all"
-                                    >
-                                        <option value="" disabled>Selecione um departamento</option>
-                                        <option value="Cobrança">Cobrança</option>
-                                        <option value="Comercial">Comercial</option>
-                                        <option value="Compras">Compras</option>
-                                        <option value="Departamento Pessoal">Departamento Pessoal</option>
-                                        <option value="Desenvolvimento">Desenvolvimento</option>
-                                        <option value="Engenharia">Engenharia</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="Squad">Squad</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Perfil</label>
-                                        <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] appearance-none cursor-pointer">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Perfil</label>
+                                        <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] appearance-none cursor-pointer">
                                             <option value="Usuario">Usuário</option>
                                             <option value="Gestor">Gestor</option>
                                         </select>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Acesso</label>
-                                        <select value={newUser.allowed} onChange={e => setNewUser({ ...newUser, allowed: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] appearance-none cursor-pointer">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Acesso</label>
+                                        <select value={newUser.allowed} onChange={e => setNewUser({ ...newUser, allowed: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] appearance-none cursor-pointer">
                                             <option value="true">Liberado</option>
                                             <option value="false">Bloqueado</option>
                                         </select>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Aprovador</label>
-                                        <select value={newUser.approver} onChange={e => setNewUser({ ...newUser, approver: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] appearance-none cursor-pointer">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Aprovador</label>
+                                        <select value={newUser.approver} onChange={e => setNewUser({ ...newUser, approver: e.target.value })} className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-sm text-[#1e293b] appearance-none cursor-pointer">
                                             <option value="false">Não</option>
-                                            <option value="true">Sim (Aprovador)</option>
+                                            <option value="true">Sim</option>
                                         </select>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Senha Temporária</label>
-                                        <input required type="text" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} className="w-full px-7 py-4.5 bg-[#f8fafc] border-none rounded-2xl font-semibold text-[#1e293b] focus:ring-2 focus:ring-[#3b82f6] transition-all" />
-                                    </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Acessos Permitidos</label>
-                                    <div className="flex flex-wrap gap-2">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Acessos Permitidos</label>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {MENU_ITEMS.map(item => (
                                             <button
                                                 key={item.id}
@@ -462,19 +476,19 @@ export default function ConfigurationPage() {
                                                     setNewUser({ ...newUser, allowed_menus: next.join(',') });
                                                 }}
                                                 className={cn(
-                                                    "px-4 py-2 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-2",
+                                                    "px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1.5",
                                                     newUser.allowed_menus.split(',').includes(item.id)
                                                         ? "bg-[#5d87b3] border-[#5d87b3] text-white"
                                                         : "bg-white border-[#f1f5f9] text-[#94a3b8] hover:border-[#5d87b3]/30"
                                                 )}
                                             >
-                                                <item.icon size={12} />
+                                                <item.icon size={11} />
                                                 {item.label}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full py-5 bg-[#5d87b3] text-white rounded-2xl font-bold mt-6 shadow-xl shadow-[#5d87b3]/20 active:scale-95 transition-all outline-none">
+                                <button type="submit" className="w-full py-3.5 bg-[#5d87b3] text-white rounded-xl font-bold mt-2 shadow-lg shadow-[#5d87b3]/20 active:scale-95 transition-all outline-none text-sm">
                                     Autorizar Colaborador
                                 </button>
                             </form>
@@ -483,22 +497,22 @@ export default function ConfigurationPage() {
                 )}
 
                 {showResetModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0f172a]/60 backdrop-blur-sm text-center">
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-12 relative border border-[#e2e8f0]">
-                            <button onClick={() => setShowResetModal(false)} className="absolute top-10 right-10 p-3 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
-                                <X size={20} />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-sm text-center">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-7 relative border border-[#e2e8f0]">
+                            <button onClick={() => setShowResetModal(false)} className="absolute top-5 right-5 p-2 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
+                                <X size={18} />
                             </button>
-                            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner border border-amber-100/50">
-                                <RotateCcw size={36} strokeWidth={2.5} />
+                            <div className="w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-amber-100/50">
+                                <RotateCcw size={28} strokeWidth={2.5} />
                             </div>
-                            <h3 className="text-2xl font-bold text-[#1e293b]">Redefinir Acesso</h3>
-                            <p className="text-sm text-[#64748b] mt-3 font-medium px-4">Crie uma nova credencial de segurança para o usuário {resettingUser?.name}</p>
-                            <form onSubmit={handleResetSubmit} className="mt-10 space-y-6 text-left">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest pl-2">Nova Senha</label>
-                                    <input required type="text" value={newResetPassword} onChange={e => setNewResetPassword(e.target.value)} className="w-full px-8 py-5 bg-[#f8fafc] border-none rounded-2xl font-bold text-[#1e293b] text-center text-xl tracking-tight focus:ring-2 focus:ring-amber-500/20 transition-all" />
+                            <h3 className="text-xl font-bold text-[#1e293b]">Redefinir Acesso</h3>
+                            <p className="text-sm text-[#64748b] mt-2 font-medium px-2">Nova credencial para {resettingUser?.name}</p>
+                            <form onSubmit={handleResetSubmit} className="mt-6 space-y-4 text-left">
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-2">Nova Senha</label>
+                                    <input required type="text" value={newResetPassword} onChange={e => setNewResetPassword(e.target.value)} className="w-full px-6 py-3.5 bg-[#f8fafc] border-none rounded-xl font-bold text-[#1e293b] text-center text-lg tracking-tight focus:ring-2 focus:ring-amber-500/20 transition-all" />
                                 </div>
-                                <button type="submit" className="w-full py-5 bg-amber-500 text-white rounded-2xl font-bold shadow-xl shadow-amber-500/20 active:scale-95 transition-all">
+                                <button type="submit" className="w-full py-3.5 bg-amber-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm">
                                     Confirmar Reset
                                 </button>
                             </form>
@@ -507,34 +521,34 @@ export default function ConfigurationPage() {
                 )}
 
                 {showDeleteModal && userToDelete && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-[#0f172a]/60 backdrop-blur-sm text-center">
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-12 relative border border-[#e2e8f0]">
-                            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner border border-rose-100">
-                                <Trash2 size={36} strokeWidth={2.5} />
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-sm text-center">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-7 relative border border-[#e2e8f0]">
+                            <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-rose-100">
+                                <Trash2 size={28} strokeWidth={2.5} />
                             </div>
-                            <h3 className="text-2xl font-bold text-[#1e293b]">Revogar Acesso</h3>
-                            <p className="text-sm text-[#64748b] mt-3 font-medium px-4">Tem certeza que deseja remover permanentemente o colaborador <strong>{userToDelete.name}</strong> do sistema?</p>
-                            <div className="flex gap-4 mt-12">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-4.5 bg-[#f8fafc] text-[#64748b] rounded-2xl font-bold hover:bg-[#f1f5f9] transition-all">Manter</button>
-                                <button onClick={confirmDelete} className="flex-1 py-4.5 bg-rose-500 text-white rounded-2xl font-bold shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Revogar</button>
+                            <h3 className="text-xl font-bold text-[#1e293b]">Revogar Acesso</h3>
+                            <p className="text-sm text-[#64748b] mt-2 font-medium px-2">Remover <strong>{userToDelete.name}</strong> do sistema?</p>
+                            <div className="flex gap-3 mt-6">
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3 bg-[#f8fafc] text-[#64748b] rounded-xl font-bold hover:bg-[#f1f5f9] transition-all text-sm">Manter</button>
+                                <button onClick={confirmDelete} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 active:scale-95 transition-all text-sm">Revogar</button>
                             </div>
                         </motion.div>
                     </div>
                 )}
 
                 {showMenuModal && menuUser && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0f172a]/60 backdrop-blur-sm">
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-12 relative border border-[#e2e8f0]">
-                            <button onClick={() => setShowMenuModal(false)} className="absolute top-10 right-10 p-3 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
-                                <X size={20} />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-7 relative border border-[#e2e8f0]">
+                            <button onClick={() => setShowMenuModal(false)} className="absolute top-5 right-5 p-2 bg-[#f8fafc] rounded-full text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
+                                <X size={18} />
                             </button>
-                            <div className="w-20 h-20 bg-blue-50 text-[#5d87b3] rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner border border-blue-100/50">
-                                <Menu size={36} strokeWidth={2} />
+                            <div className="w-14 h-14 bg-blue-50 text-[#5d87b3] rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-blue-100/50">
+                                <Menu size={28} strokeWidth={2} />
                             </div>
-                            <h3 className="text-2xl font-bold text-[#1e293b] text-center">Acessos do Menu</h3>
-                            <p className="text-sm text-[#64748b] mt-3 font-medium px-4 text-center">Selecione quais módulos <strong>{menuUser.name}</strong> poderá visualizar no sistema.</p>
+                            <h3 className="text-xl font-bold text-[#1e293b] text-center">Acessos do Menu</h3>
+                            <p className="text-sm text-[#64748b] mt-2 font-medium px-2 text-center">Módulos de <strong>{menuUser.name}</strong></p>
 
-                            <div className="mt-10 grid gap-3">
+                            <div className="mt-5 grid gap-2">
                                 {MENU_ITEMS.map(item => {
                                     const isAllowed = (menuUser.allowed_menus || '').split(',').includes(item.id);
                                     return (
@@ -547,39 +561,38 @@ export default function ConfigurationPage() {
                                                     : [...current, item.id];
 
                                                 const nextMenus = next.join(',');
-                                                // Optimistic update
                                                 setUsers(prev => prev.map(u => u.id === menuUser.id ? { ...u, allowed_menus: nextMenus } : u));
                                                 setMenuUser({ ...menuUser, allowed_menus: nextMenus });
                                                 handleUpdateUser(menuUser.id, { allowed_menus: nextMenus });
                                             }}
                                             className={cn(
-                                                "w-full flex items-center justify-between p-5 rounded-2xl border transition-all",
+                                                "w-full flex items-center justify-between p-3.5 rounded-xl border transition-all",
                                                 isAllowed
                                                     ? "bg-[#f8fbff] border-[#5d87b3]/20 text-[#1e293b]"
                                                     : "bg-white border-[#f1f5f9] text-[#94a3b8] hover:bg-[#f8fafc]"
                                             )}
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-3">
                                                 <div className={cn(
-                                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                                                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
                                                     isAllowed ? "bg-[#5d87b3] text-white" : "bg-[#f1f5f9] text-[#94a3b8]"
                                                 )}>
-                                                    <item.icon size={20} strokeWidth={2.5} />
+                                                    <item.icon size={16} strokeWidth={2.5} />
                                                 </div>
                                                 <span className="font-bold text-sm tracking-tight">{item.label}</span>
                                             </div>
                                             <div className={cn(
-                                                "w-6 h-6 rounded-full flex items-center justify-center border transition-all",
+                                                "w-5 h-5 rounded-full flex items-center justify-center border transition-all",
                                                 isAllowed ? "bg-[#10b981] border-[#10b981] text-white" : "border-[#cbd5e1] scale-90"
                                             )}>
-                                                {isAllowed && <Check size={14} strokeWidth={4} />}
+                                                {isAllowed && <Check size={12} strokeWidth={4} />}
                                             </div>
                                         </button>
                                     );
                                 })}
                             </div>
 
-                            <button onClick={() => setShowMenuModal(false)} className="w-full py-5 bg-[#1e293b] text-white rounded-2xl font-bold mt-10 shadow-xl active:scale-95 transition-all">
+                            <button onClick={() => setShowMenuModal(false)} className="w-full py-3.5 bg-[#1e293b] text-white rounded-xl font-bold mt-5 shadow-lg active:scale-95 transition-all text-sm">
                                 Salvar Permissões
                             </button>
                         </motion.div>

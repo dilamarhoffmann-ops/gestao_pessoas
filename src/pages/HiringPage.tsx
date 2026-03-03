@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, User, Users, Mail, ArrowRight, CheckCircle, Search, Filter, Briefcase, ChevronRight, X, FileText, Paperclip, Upload, Scan, Download, Globe, UserSearch, Network, Handshake, TrendingUp, Trash2, Edit, Archive, Clock } from 'lucide-react';
+import { Plus, User, Users, Mail, ArrowRight, CheckCircle, Search, Filter, Briefcase, ChevronRight, X, FileText, Paperclip, Upload, Scan, Download, Globe, UserSearch, Network, Handshake, TrendingUp, Trash2, Edit, Archive, Clock, Linkedin, Instagram, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { candidatesService, jobOpeningsService } from '../lib/supabase-service';
 
 type Candidate = {
   id: number;
@@ -11,7 +12,7 @@ type Candidate = {
   position: string;
   email: string;
   phone?: string;
-  status: 'applied' | 'interview1' | 'interview2' | 'offer' | 'hired' | 'archived';
+  status: 'pool' | 'applied' | 'interview1' | 'interview2' | 'offer' | 'hired' | 'archived';
   interview_notes?: string;
   interview_notes_2?: string;
   resume_url?: string;
@@ -27,6 +28,7 @@ type Candidate = {
   feedback_30?: string;
   feedback_60?: string;
   feedback_90?: string;
+  raw_data?: any;
   contract_start_date?: string;
   contract_alert_acknowledged?: number;
   termination_date?: string;
@@ -82,7 +84,8 @@ export default function HiringPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [candidateToArchive, setCandidateToArchive] = useState<number | null>(null);
+  const [isCandidatesModalOpen, setIsCandidatesModalOpen] = useState(false);
+  const [candidateToArchive, setCandidateToArchive] = useState<Candidate | null>(null);
   const [candidateToEdit, setCandidateToEdit] = useState<Candidate | null>(null);
   const navigate = useNavigate();
 
@@ -91,9 +94,8 @@ export default function HiringPage() {
   }, []);
 
   const fetchCandidates = async () => {
-    const res = await fetch('/api/candidates');
-    const data = await res.json();
-    setCandidates(data);
+    const data = await candidatesService.getAll();
+    setCandidates(data as Candidate[]);
   };
 
   const handleEditCandidate = (candidate: Candidate) => {
@@ -104,8 +106,7 @@ export default function HiringPage() {
   const handleMatch = async (id: number) => {
     try {
       setCandidates(prev => prev.map(c => c.id === id ? { ...c, match_score: -1 } : c)); // -1 representing loading
-      const res = await fetch(`/api/candidates/${id}/match`, { method: 'POST' });
-      const data = await res.json();
+      const data = await candidatesService.matchCandidate(id);
       if (data.success) {
         setCandidates(prev => prev.map(c => c.id === id ? { ...c, match_score: data.match_score, match_reason: data.match_reason } : c));
       } else {
@@ -124,41 +125,52 @@ export default function HiringPage() {
 
     const nextStatus = statusOrder[currentIndex + 1];
 
-    await fetch(`/api/candidates/${id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus }),
-    });
+    await candidatesService.updateStatus(id, { status: nextStatus });
     fetchCandidates();
   };
 
-  const handleArchiveRequest = (id: number) => {
-    setCandidateToArchive(id);
+  const handleArchiveRequest = (candidate: Candidate) => {
+    setCandidateToArchive(candidate);
     setIsArchiveModalOpen(true);
   };
 
   const confirmArchive = async (reason: string, date?: string) => {
     if (!candidateToArchive) return;
-    await fetch(`/api/candidates/${candidateToArchive}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: 'archived',
-        archive_reason: reason,
-        termination_date: date || null
-      }),
+    await candidatesService.updateStatus(candidateToArchive.id, {
+      status: 'archived',
+      archive_reason: reason,
+      termination_date: date || null
     });
     setIsArchiveModalOpen(false);
     setCandidateToArchive(null);
     fetchCandidates();
   };
 
-  const handleRestart = async (id: number) => {
-    await fetch(`/api/candidates/${id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'applied' }),
-    });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'candidate' | 'job'; name: string } | null>(null);
+
+  const handleDeleteCandidate = async () => {
+    if (!candidateToEdit?.id) return;
+    setItemToDelete({ id: candidateToEdit.id, type: 'candidate', name: candidateToEdit.name });
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    if (itemToDelete.type === 'candidate') {
+      await candidatesService.delete(itemToDelete.id);
+      setIsModalOpen(false);
+      setCandidateToEdit(null);
+      fetchCandidates();
+    } else {
+      await jobOpeningsService.delete(itemToDelete.id);
+    }
+    setIsDeleteModalOpen(false);
+    setItemToDelete(null);
+  };
+
+  const handleRestart = async (id: number, status: 'pool' | 'applied' = 'applied') => {
+    await candidatesService.updateStatus(id, { status });
     fetchCandidates();
   };
 
@@ -178,23 +190,16 @@ export default function HiringPage() {
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <button
-              onClick={() => navigate('/receipts')}
-              className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
-            >
-              <FileText size={18} className="text-primary" />
-              Recibos
-            </button>
-            <button
               onClick={() => setIsJobModalOpen(true)}
-              className="flex-1 md:flex-none px-6 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:bg-slate-100 transition-all shadow-sm"
+              className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:border-primary/30 transition-all shadow-sm"
             >
-              <Briefcase size={18} className="text-deep-navy" /> Vagas
+              <Briefcase size={18} className="text-primary" /> Vagas
             </button>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex-1 md:flex-none btn-premium shadow-xl shadow-primary/20"
+              onClick={() => setIsCandidatesModalOpen(true)}
+              className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:border-primary/30 transition-all shadow-sm"
             >
-              <Plus size={20} /> Novo Candidato
+              <Users size={18} className="text-primary" /> Candidatos
             </button>
           </div>
         </div>
@@ -281,10 +286,10 @@ export default function HiringPage() {
                           key={candidate.id}
                           candidate={candidate}
                           onMove={() => moveCandidate(candidate.id, candidate.status)}
-                          onArchive={() => handleArchiveRequest(candidate.id)}
+                          onArchive={() => handleArchiveRequest(candidate)}
                           onEdit={() => handleEditCandidate(candidate)}
                           onMatch={() => handleMatch(candidate.id)}
-                          onRestart={() => handleRestart(candidate.id)}
+                          onRestart={() => handleRestart(candidate.id, 'pool')}
                           onUpdate={fetchCandidates}
                         />
                       ))}
@@ -306,18 +311,61 @@ export default function HiringPage() {
             }}
             onCreated={fetchCandidates}
             candidateToEdit={candidateToEdit}
+            handleDeleteCandidate={handleDeleteCandidate}
           />
         )}
         {isArchiveModalOpen && (
-          <ArchiveModal
+          <ArchiveConfirmationModal
             isOpen={isArchiveModalOpen}
-            onClose={() => setIsArchiveModalOpen(false)}
+            onClose={() => {
+              setIsArchiveModalOpen(false);
+              setCandidateToArchive(null);
+            }}
             onConfirm={confirmArchive}
-            candidateId={candidateToArchive}
+            candidate={candidateToArchive}
           />
         )}
         {isJobModalOpen && (
-          <JobOpeningsModal isOpen={isJobModalOpen} onClose={() => setIsJobModalOpen(false)} onCreated={() => { }} />
+          <JobOpeningsModal
+            isOpen={isJobModalOpen}
+            onClose={() => setIsJobModalOpen(false)}
+            onCreated={() => { }}
+            onDelete={(id, name) => {
+              setItemToDelete({ id, type: 'job', name });
+              setIsDeleteModalOpen(true);
+            }}
+          />
+        )}
+        {isDeleteModalOpen && itemToDelete && (
+          <DeleteConfirmationModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => {
+              setIsDeleteModalOpen(false);
+              setItemToDelete(null);
+            }}
+            onConfirm={confirmDelete}
+            title={itemToDelete.type === 'candidate' ? "Excluir Candidato" : "Excluir Vaga"}
+            message={itemToDelete.type === 'candidate'
+              ? `Tem certeza que deseja excluir o candidato ${itemToDelete.name} da base? Esta ação é irreversível.`
+              : `Tem certeza que deseja excluir a vaga ${itemToDelete.name}? Esta ação é irreversível.`
+            }
+          />
+        )}
+        {isCandidatesModalOpen && (
+          <CandidatesManagementModal
+            isOpen={isCandidatesModalOpen}
+            onClose={() => setIsCandidatesModalOpen(false)}
+            candidates={candidates}
+            onEdit={handleEditCandidate}
+            onNew={() => {
+              setIsCandidatesModalOpen(false);
+              setIsModalOpen(true);
+            }}
+            onInitiate={(id) => {
+              handleRestart(id, 'applied');
+              setIsCandidatesModalOpen(false);
+            }}
+          />
         )}
       </AnimatePresence>
     </>
@@ -563,21 +611,32 @@ const CandidateCard: React.FC<{
             <Archive size={14} /> Arquivado
           </div>
           <button
-            onClick={onRestart}
-            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm shadow-primary/5 active:scale-95"
+            onClick={() => onRestart?.()}
+            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100 active:scale-95 border border-indigo-100"
           >
-            <TrendingUp size={14} /> Reiniciar Processo
+            <Users size={14} /> Retornar ao Banco de Talentos
           </button>
         </div>
       )}
 
       {candidate.status !== 'hired' && candidate.status !== 'archived' && (
-        <button
-          onClick={onMove}
-          className="mt-4 w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-slate-50 text-deep-navy/60 hover:bg-primary hover:text-white hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
-        >
-          Próxima Etapa <ChevronRight size={14} />
-        </button>
+        <div className="flex flex-col gap-2 mt-4">
+          <button
+            onClick={onMove}
+            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-slate-50 text-deep-navy/60 hover:bg-primary hover:text-white hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
+          >
+            Próxima Etapa <ChevronRight size={14} />
+          </button>
+
+          {candidate.status === 'applied' && (
+            <button
+              onClick={onArchive}
+              className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white transition-all active:scale-95 border border-orange-100/50"
+            >
+              <Trash2 size={14} /> Excluir do Fluxo
+            </button>
+          )}
+        </div>
       )}
 
       {candidate.status === 'offer' && candidate.contract_start_date && !candidate.contract_alert_acknowledged && (() => {
@@ -615,9 +674,8 @@ const CandidateCard: React.FC<{
                   if (candidate.contract_start_date) formData.set('contract_start_date', candidate.contract_start_date);
                   if (candidate.onboarding_date) formData.set('onboarding_date', candidate.onboarding_date);
 
-                  await fetch(`/api/candidates/${candidate.id}`, {
-                    method: 'PUT',
-                    body: formData
+                  await candidatesService.update(candidate.id, {
+                    contract_alert_acknowledged: true
                   });
                   onUpdate?.(); // Only reload the list
                 }}
@@ -635,7 +693,7 @@ const CandidateCard: React.FC<{
 }
 
 
-function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { isOpen: boolean; onClose: () => void; onCreated: () => void; candidateToEdit?: Candidate | null }) {
+function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit, handleDeleteCandidate }: { isOpen: boolean; onClose: () => void; onCreated: () => void; candidateToEdit?: Candidate | null; handleDeleteCandidate: () => void }) {
   const [jobOpenings, setJobOpenings] = useState<any[]>([]);
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [isMatching, setIsMatching] = useState<boolean>(false);
@@ -650,13 +708,43 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
   const [formEmail, setFormEmail] = useState<string>(candidateToEdit?.email || '');
   const [formObservations, setFormObservations] = useState<string>(candidateToEdit?.observations || '');
 
+  // Full Data Integration State
+  const [birthDate, setBirthDate] = useState(candidateToEdit?.raw_data?.dataNascimento?.split('T')[0] || '');
+  const [gender, setGender] = useState(candidateToEdit?.raw_data?.sexo || '');
+  const [maritalStatus, setMaritalStatus] = useState(candidateToEdit?.raw_data?.estadoCivil || '');
+  const [cep, setCep] = useState(candidateToEdit?.raw_data?.localidade?.cep || '');
+  const [address, setAddress] = useState(candidateToEdit?.raw_data?.localidade?.logradouro || '');
+  const [neighborhood, setNeighborhood] = useState(candidateToEdit?.raw_data?.localidade?.bairro || '');
+  const [city, setCity] = useState(candidateToEdit?.raw_data?.localidade?.cidade || '');
+  const [state, setState] = useState(candidateToEdit?.raw_data?.localidade?.estado || '');
+  const [salaryExpectation, setSalaryExpectation] = useState(candidateToEdit?.raw_data?.curriculo?.pretensaoSalarial || '');
+  const [synthesis, setSynthesis] = useState(candidateToEdit?.raw_data?.curriculo?.sintese || '');
+  const [linkedin, setLinkedin] = useState(candidateToEdit?.raw_data?.curriculo?.redeSocial?.find((r: any) => r.id === 'LinkedIn')?.url || '');
+  const [instagram, setInstagram] = useState(candidateToEdit?.raw_data?.curriculo?.redeSocial?.find((r: any) => r.id === 'Instagram')?.url || '');
+
   // Sync when editing a different candidate
   useEffect(() => {
     setPhone(applyPhoneMask(candidateToEdit?.phone || ''));
     setFormName(candidateToEdit?.name || '');
     setFormEmail(candidateToEdit?.email || '');
     setFormObservations(candidateToEdit?.observations || '');
-    setEmpregareData(null);
+
+    // Sync additional fields
+    const raw = candidateToEdit?.raw_data;
+    setBirthDate(raw?.dataNascimento?.split('T')[0] || '');
+    setGender(raw?.sexo || '');
+    setMaritalStatus(raw?.estadoCivil || '');
+    setCep(raw?.localidade?.cep || '');
+    setAddress(raw?.localidade?.logradouro || '');
+    setNeighborhood(raw?.localidade?.bairro || '');
+    setCity(raw?.localidade?.cidade || '');
+    setState(raw?.localidade?.estado || '');
+    setSalaryExpectation(raw?.curriculo?.pretensaoSalarial || '');
+    setSynthesis(raw?.curriculo?.sintese || '');
+    setLinkedin(raw?.curriculo?.redeSocial?.find((r: any) => r.id === 'LinkedIn')?.url || '');
+    setInstagram(raw?.curriculo?.redeSocial?.find((r: any) => r.id === 'Instagram')?.url || '');
+
+    setEmpregareData(raw || null);
     setEmpregareJson('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateToEdit?.id]);
@@ -673,11 +761,27 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
     try {
       const data = JSON.parse(empregareJson);
       if (data && data.pessoa) {
-        setEmpregareData(data.pessoa);
-        setPhone(applyPhoneMask(data.pessoa.celular || data.pessoa.telefone || ''));
-        setFormName(data.pessoa.nome || '');
-        setFormEmail(data.pessoa.email || '');
-        setFormObservations(constructEmpregareObs(data.pessoa));
+        const p = data.pessoa;
+        setEmpregareData(p);
+        setPhone(applyPhoneMask(p.celular || p.telefone || ''));
+        setFormName(p.nome || '');
+        setFormEmail(p.email || '');
+        setFormObservations(constructEmpregareObs(p));
+
+        // Populate new fields
+        setBirthDate(p.dataNascimento?.split('T')[0] || '');
+        setGender(p.sexo || '');
+        setMaritalStatus(p.estadoCivil || '');
+        setCep(p.localidade?.cep || '');
+        setAddress(p.localidade?.logradouro || '');
+        setNeighborhood(p.localidade?.bairro || '');
+        setCity(p.localidade?.cidade || '');
+        setState(p.localidade?.estado || '');
+        setSalaryExpectation(p.curriculo?.pretensaoSalarial || '');
+        setSynthesis(p.curriculo?.sintese || '');
+        setLinkedin(p.curriculo?.redeSocial?.find((r: any) => r.id === 'LinkedIn')?.url || '');
+        setInstagram(p.curriculo?.redeSocial?.find((r: any) => r.id === 'Instagram')?.url || '');
+
         setShowEmpregareImport(false);
         setEmpregareJson('');
       } else {
@@ -714,8 +818,7 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
     if (!candidateToEdit?.id) return;
     try {
       setIsMatching(true);
-      const res = await fetch(`/api/candidates/${candidateToEdit.id}/match`, { method: 'POST' });
-      const data = await res.json();
+      const data = await candidatesService.matchCandidate(candidateToEdit.id);
       if (data.success) {
         setMatchScore(data.match_score);
       } else {
@@ -730,16 +833,11 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
   };
 
   const handleDelete = async () => {
-    if (!candidateToEdit?.id) return;
-    if (confirm('Tem certeza que deseja excluir este candidato da base?')) {
-      await fetch(`/api/candidates/${candidateToEdit.id}`, { method: 'DELETE' });
-      onCreated();
-      onClose();
-    }
+    handleDeleteCandidate();
   };
 
   useEffect(() => {
-    fetch('/api/job-openings').then(res => res.json()).then(data => setJobOpenings(data));
+    jobOpeningsService.getAll().then(data => setJobOpenings(data as any[]));
   }, []);
 
   const [showSuccess, setShowSuccess] = useState(false);
@@ -754,6 +852,12 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
     formData.set('name', formName);
     formData.set('phone', phone);
     formData.set('email', formEmail);
+
+    // Manual Validation for safety
+    if (!formName || !formEmail || !formData.get('position')) {
+      alert('Por favor, preencha nome, email e vaga pretendida.');
+      return;
+    }
 
     // Only inject observations if we are on edit mode or if there are no values on DOM (safety pin)
     if (formObservations && formData.get('observations') === null) {
@@ -779,28 +883,81 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
 
     try {
       setIsSaving(true);
-      if (candidateToEdit) {
-        await fetch(`/api/candidates/${candidateToEdit.id}`, {
-          method: 'PUT',
-          body: formData,
-        });
+      const combinedRawData = {
+        ...(empregareData || candidateToEdit?.raw_data || {}),
+        dataNascimento: birthDate ? `${birthDate}T00:00:00` : (empregareData || candidateToEdit?.raw_data)?.dataNascimento,
+        sexo: gender || (empregareData || candidateToEdit?.raw_data)?.sexo,
+        estadoCivil: maritalStatus || (empregareData || candidateToEdit?.raw_data)?.estadoCivil,
+        localidade: {
+          ...((empregareData || candidateToEdit?.raw_data)?.localidade || {}),
+          cep: cep || (empregareData || candidateToEdit?.raw_data)?.localidade?.cep,
+          logradouro: address || (empregareData || candidateToEdit?.raw_data)?.localidade?.logradouro,
+          bairro: neighborhood || (empregareData || candidateToEdit?.raw_data)?.localidade?.bairro,
+          cidade: city || (empregareData || candidateToEdit?.raw_data)?.localidade?.cidade,
+          estado: state || (empregareData || candidateToEdit?.raw_data)?.localidade?.estado,
+        },
+        curriculo: {
+          ...((empregareData || candidateToEdit?.raw_data)?.curriculo || {}),
+          pretensaoSalarial: salaryExpectation || (empregareData || candidateToEdit?.raw_data)?.curriculo?.pretensaoSalarial,
+          sintese: synthesis || (empregareData || candidateToEdit?.raw_data)?.curriculo?.sintese,
+          redeSocial: [
+            { id: 'LinkedIn', url: linkedin },
+            { id: 'Instagram', url: instagram },
+            { id: 'WhatsApp', url: phone.replace(/\D/g, '') },
+            ...((empregareData || candidateToEdit?.raw_data)?.curriculo?.redeSocial?.filter((r: any) => !['LinkedIn', 'Instagram', 'WhatsApp'].includes(r.id)) || [])
+          ]
+        }
+      };
 
-        // Show success state on button
+      // Extract file from formData if present
+      const file = formData.get('curriculo') as File;
+
+      if (candidateToEdit) {
+        const updateData: any = {
+          name: formName,
+          position: formData.get('position'),
+          email: formEmail,
+          observations: formData.get('observations') || formObservations,
+          interview_notes: formData.get('interview_notes'),
+          interview_notes_2: formData.get('interview_notes_2'),
+          docs_delivered: formData.get('docs_delivered') === '1',
+          vt_delivered: formData.get('vt_delivered') === '1',
+          onboarding_date: formData.get('onboarding_date') || null,
+          feedback_30: formData.get('feedback_30') || null,
+          feedback_60: formData.get('feedback_60') || null,
+          feedback_90: formData.get('feedback_90') || null,
+          contract_start_date: formData.get('contract_start_date') || null,
+          contract_alert_acknowledged: formData.get('contract_alert_acknowledged') === '1',
+          phone: phone || null,
+          archive_reason: formData.get('archive_reason') || null,
+          termination_date: formData.get('termination_date') || null,
+          raw_data: combinedRawData
+        };
+        await candidatesService.update(candidateToEdit.id, updateData, file && file.size > 0 ? file : undefined);
+
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
       } else {
-        await fetch('/api/candidates', {
-          method: 'POST',
-          body: formData,
-        });
+        await candidatesService.create({
+          name: formName,
+          position: formData.get('position'),
+          email: formEmail,
+          observations: formData.get('observations') || formObservations,
+          contract_start_date: formData.get('contract_start_date') || null,
+          phone: phone || null,
+          status: 'pool',
+          raw_data: combinedRawData
+        }, file && file.size > 0 ? file : undefined);
+
       }
+      onCreated();
+    } catch (error: any) {
+      console.error('Error saving candidate:', error);
+      alert('Erro ao salvar candidato: ' + (error.message || 'Verifique sua conexão ou se o arquivo é muito grande.'));
     } finally {
       setIsSaving(false);
     }
 
-    onCreated();
-
-    // Only close if creating a NEW candidate
     if (!candidateToEdit) {
       onClose();
     }
@@ -848,7 +1005,7 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
                 onClick={() => setShowProfileModal(true)}
                 className="px-6 py-3.5 bg-indigo-50 text-indigo-600 font-black uppercase text-xs tracking-widest rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-3 shadow-sm border border-indigo-100"
               >
-                <UserSearch size={18} /> Ver Dossiê Completo
+                <UserSearch size={18} /> Ver Currículo
               </button>
             )}
             {!candidateToEdit && (
@@ -939,73 +1096,18 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
               )}
             </AnimatePresence>
 
-            {/* Search Simulator Container */}
-            <div className="relative group mt-6">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-deep-navy/30 group-focus-within:text-primary transition-colors" size={20} />
-              <input
-                id="modal-candidate-search"
-                className="search-input"
-                placeholder="Pesquisar por nome, CPF ou competência..."
-              />
-            </div>
 
-            {/* Stats Bar Simulator - 3 Columns for Recruitment */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white px-8 py-5 rounded-3xl border border-slate-50 flex items-center justify-between group hover:shadow-premium transition-all">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
-                    <Briefcase size={28} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Triagem</p>
-                    <p className="text-lg font-black text-deep-navy">Alinhamento</p>
-                  </div>
-                </div>
-                <span className="text-3xl font-black text-indigo-500 opacity-20">0</span>
-              </div>
-
-              <div className="bg-white px-8 py-5 rounded-3xl border border-slate-50 flex items-center justify-between group hover:shadow-premium transition-all">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
-                    <Upload size={28} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">CV Audit</p>
-                    <p className="text-lg font-black text-deep-navy">Documentos</p>
-                  </div>
-                </div>
-                <span className="text-3xl font-black text-amber-500 opacity-20">0</span>
-              </div>
-
-              <div className="bg-white px-8 py-5 rounded-3xl border border-slate-50 flex items-center justify-between group hover:shadow-premium transition-all relative overflow-hidden">
-                <div className="absolute top-3 right-5 bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest">
-                  Match Score
-                </div>
-                <div className="flex items-center gap-5 text-emerald-500">
-                  <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center">
-                    <Scan size={28} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Score AI</p>
-                    <p className="text-lg font-black text-deep-navy">Aderência</p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Main Form Section - High Contrast Area */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="px-10 py-5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col mt-6">
+              <div className="px-10 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3 text-primary">
                   <User size={18} />
                   <h4 className="text-[10px] font-black text-deep-navy/60 uppercase tracking-[0.2em]">Formulário de Ingresso Estratégico</h4>
                 </div>
-                <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">
-                  Status: Novo
-                </div>
               </div>
 
-              <form id="candidate-form" key={candidateToEdit?.id ?? 'new'} onSubmit={handleSubmit} className="p-10 space-y-10">
+              <form id="candidate-form" key={candidateToEdit?.id ?? 'new'} onSubmit={handleSubmit} className="p-8 space-y-8">
                 <input type="hidden" name="contract_alert_acknowledged" value={candidateToEdit?.contract_alert_acknowledged || 0} />
 
                 {/* Status lock helpers */}
@@ -1043,16 +1145,15 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
                   return (
                     <>
                       {/* 1. Fonte - always active */}
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-[#B1C3FF]/20 flex items-center justify-center text-deep-navy border border-[#B1C3FF]/30 font-black shrink-0">1</div>
+                          <div className="w-7 h-7 rounded-xl bg-[#B1C3FF]/20 flex items-center justify-center text-deep-navy border border-[#B1C3FF]/30 font-black shrink-0 text-xs">1</div>
                           <h5 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Fonte</h5>
-                          <span className="ml-auto text-[9px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest">Ativo</span>
                         </div>
-                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 flex flex-col gap-8">
+                        <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 flex flex-col gap-6">
                           {/* 1. Dados Principais */}
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                            <div className="space-y-6">
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                            <div className="space-y-4">
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Nome Completo</label>
                                 <input name="name_visual" value={formName} onChange={e => setFormName(e.target.value)} required className="premium-input bg-white border-slate-200 focus:border-primary/30" placeholder="Digite o nome..." />
@@ -1072,7 +1173,7 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
                               </div>
                             </div>
 
-                            <div className="space-y-6">
+                            <div className="space-y-4">
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Vaga Pretendida</label>
                                 <select
@@ -1092,6 +1193,97 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
                                 <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Email</label>
                                 <input id="cand-email" name="email_visual" value={formEmail} onChange={e => setFormEmail(e.target.value)} type="email" required className="premium-input bg-white border-slate-200 focus:border-primary/30" placeholder="email@exemplo..." />
                               </div>
+                            </div>
+                          </div>
+
+                          {/* 1.1 Dados Cadastrais */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100/50">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Data Nascimento</label>
+                                {birthDate && (
+                                  <span className="text-[9px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 uppercase tracking-widest">
+                                    {(() => {
+                                      const today = new Date();
+                                      const bDay = new Date(birthDate + 'T12:00:00');
+                                      let age = today.getFullYear() - bDay.getFullYear();
+                                      const m = today.getMonth() - bDay.getMonth();
+                                      if (m < 0 || (m === 0 && today.getDate() < bDay.getDate())) age--;
+                                      return `${age} anos`;
+                                    })()}
+                                  </span>
+                                )}
+                              </div>
+                              <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="premium-input bg-white h-[42px] text-xs font-bold" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Sexo</label>
+                              <select value={gender} onChange={e => setGender(e.target.value)} className="premium-input bg-white h-[42px] text-xs font-bold">
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                                <option value="Outro">Outro</option>
+                              </select>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Estado Civil</label>
+                              <select value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)} className="premium-input bg-white h-[42px] text-xs font-bold">
+                                <option value="">Selecione...</option>
+                                <option value="Solteiro">Solteiro(a)</option>
+                                <option value="Casado">Casado(a)</option>
+                                <option value="Divorciado">Divorciado(a)</option>
+                                <option value="Viúvo">Viúvo(a)</option>
+                                <option value="UniaoEstavel">União Estável</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* 1.2 Localidade */}
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">CEP</label>
+                              <input value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" className="premium-input bg-white h-[42px] text-xs" />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Logradouro / Endereço</label>
+                              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, Número, Complemento..." className="premium-input bg-white h-[42px] text-xs" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Bairro</label>
+                              <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} placeholder="Bairro..." className="premium-input bg-white h-[42px] text-xs" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-2 gap-6 pt-2">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Cidade</label>
+                              <input value={city} onChange={e => setCity(e.target.value)} placeholder="Cidade..." className="premium-input bg-white h-[42px] text-xs" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Estado (UF)</label>
+                              <input value={state} onChange={e => setState(e.target.value)} placeholder="UF" className="premium-input bg-white h-[42px] text-xs" maxLength={2} />
+                            </div>
+                          </div>
+
+                          {/* 1.3 Perfil e Síntese */}
+                          <div className="space-y-4 pt-4 border-t border-slate-100/50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">LinkedIn URL</label>
+                                <input value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/..." className="premium-input bg-white h-[42px] text-xs" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Instagram User</label>
+                                <input value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="@usuário..." className="premium-input bg-white h-[42px] text-xs" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Pretensão Salarial</label>
+                              <input value={salaryExpectation} onChange={e => setSalaryExpectation(e.target.value)} placeholder="Ex: 4500" className="premium-input bg-white h-[42px] text-xs" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Síntese do Perfil</label>
+                              <textarea value={synthesis} onChange={e => setSynthesis(e.target.value)} className="premium-input bg-white min-h-[60px] resize-none p-3 text-xs border-slate-200" placeholder="Resumo das qualificações..." />
                             </div>
                           </div>
 
@@ -1418,16 +1610,155 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit }: { is
 }
 
 
-function JobOpeningsModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: () => void }) {
+function CandidatesManagementModal({ isOpen, onClose, candidates, onEdit, onNew, onInitiate }: { isOpen: boolean; onClose: () => void; candidates: Candidate[]; onEdit: (c: Candidate) => void; onNew: () => void; onInitiate: (id: number) => void }) {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filtered = candidates.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-md bg-white/40 flex items-center justify-center z-[60] p-4 md:p-10 animate-in fade-in duration-300">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-[3rem] shadow-premium-dark border border-slate-100 flex flex-col overflow-hidden"
+      >
+        <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+          <div className="flex items-center gap-6">
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-slate-100">
+              <Users size={28} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-deep-navy uppercase tracking-tight">Base de <span className="text-primary">Candidatos</span></h3>
+              <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-[0.2em] mt-1">Consulta e gestão centralizada do banco de talentos</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onNew}
+              className="px-6 py-3 bg-primary text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+            >
+              <Plus size={16} /> Novo Registro
+            </button>
+            <button onClick={onClose} className="p-3 text-deep-navy/20 hover:text-deep-navy hover:bg-slate-100 rounded-xl transition-all">
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-10 flex-1 flex flex-col min-h-0">
+          <div className="relative group mb-8">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-deep-navy/20 group-focus-within:text-primary transition-colors" size={18} />
+            <input
+              type="text"
+              placeholder="Pesquise por nome, cargo ou e-mail..."
+              className="w-full pl-16 pr-8 py-5 bg-slate-50 border-2 border-slate-50 rounded-2xl font-bold text-sm text-deep-navy placeholder:text-deep-navy/20 focus:bg-white focus:border-primary/20 transition-all outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="pb-4 pt-2 text-[10px] font-black text-deep-navy/30 uppercase tracking-widest pl-4">Candidato</th>
+                  <th className="pb-4 pt-2 text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Informações de Contato</th>
+                  <th className="pb-4 pt-2 text-[10px] font-black text-deep-navy/30 uppercase tracking-widest px-4">Fase Atual</th>
+                  <th className="pb-4 pt-2 text-[10px] font-black text-deep-navy/30 uppercase tracking-widest text-right pr-4">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map(candidate => (
+                  <tr key={candidate.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="py-5 pl-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-deep-navy/30 font-black text-xs uppercase">
+                          {candidate.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-black text-sm text-deep-navy leading-none mb-1 group-hover:text-primary transition-colors">{candidate.name}</p>
+                          <p className="text-[10px] font-bold text-deep-navy/30 uppercase tracking-widest">{candidate.position}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-5">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-[11px] font-bold text-deep-navy/60">
+                          <Mail size={12} className="text-primary/40" />
+                          {candidate.email}
+                        </div>
+                        {candidate.phone && (
+                          <div className="flex items-center gap-2 text-[11px] font-bold text-deep-navy/60">
+                            <Clock size={12} className="text-primary/40" />
+                            {candidate.phone}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-5 px-4">
+                      <span className={cn(
+                        "text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border inline-block",
+                        candidate.status === 'pool'
+                          ? "bg-slate-50 text-slate-400 border-slate-100"
+                          : COLUMNS.find(col => col.id === candidate.status)?.color?.split(' ').filter(c => c.startsWith('bg-') || c.startsWith('text-') || c.startsWith('border-')).join(' ') || "bg-slate-100 text-slate-500"
+                      )}>
+                        {candidate.status === 'pool' ? "Banco de Talentos" : (COLUMNS.find(col => col.id === candidate.status)?.label || candidate.status)}
+                      </span>
+                    </td>
+                    <td className="py-5 text-right pr-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => onInitiate(candidate.id)}
+                          className="px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all shadow-sm flex items-center gap-2 group/init"
+                          title="Iniciar Processo"
+                        >
+                          <Plus size={14} />
+                          <span className="text-[8px] font-black uppercase tracking-widest">Iniciar</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            onClose();
+                            onEdit(candidate);
+                          }}
+                          className="p-2 bg-slate-50 text-deep-navy/30 hover:bg-primary hover:text-white rounded-xl transition-all shadow-sm"
+                          title="Ver Currículo"
+                        >
+                          <Search size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-20 text-center">
+                      <p className="text-sm font-bold text-deep-navy/30 uppercase tracking-widest">Nenhum candidato encontrado...</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+
+function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: boolean; onClose: () => void; onCreated: () => void; onDelete: (id: number, name: string) => void }) {
   const [isCreating, setIsCreating] = useState(false);
   const [jobOpenings, setJobOpenings] = useState<any[]>([]);
   const [jobToEdit, setJobToEdit] = useState<any | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
   const fetchJobs = async () => {
-    const res = await fetch('/api/job-openings');
-    const data = await res.json();
-    setJobOpenings(data);
+    const data = await jobOpeningsService.getAll();
+    setJobOpenings(data as any[]);
   };
 
   useEffect(() => {
@@ -1440,11 +1771,8 @@ function JobOpeningsModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
     setIsCreating(true);
   };
 
-  const handleDeleteJob = async (id: number) => {
-    if (confirm('Tem certeza que deseja excluir esta vaga?')) {
-      await fetch(`/api/job-openings/${id}`, { method: 'DELETE' });
-      fetchJobs();
-    }
+  const handleDeleteJobInternal = async (id: number, name: string) => {
+    onDelete(id, name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1465,26 +1793,14 @@ function JobOpeningsModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
     };
 
     try {
-      let res;
       if (jobToEdit) {
-        res = await fetch(`/api/job-openings/${jobToEdit.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+        await jobOpeningsService.update(jobToEdit.id, data);
       } else {
-        res = await fetch('/api/job-openings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-      }
-
-      if (!res.ok) {
-        throw new Error('Falha ao salvar a vaga.');
+        await jobOpeningsService.create(data as any);
       }
 
       await fetchJobs();
+      onCreated();
       setIsCreating(false);
       setJobToEdit(null);
     } catch (error) {
@@ -1631,7 +1947,7 @@ function JobOpeningsModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
                       <button onClick={() => handleEditJob(job)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Editar Vaga">
                         <Edit size={16} />
                       </button>
-                      <button onClick={() => handleDeleteJob(job.id)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir Vaga">
+                      <button onClick={() => handleDeleteJobInternal(job.id, job.title)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir Vaga">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -1658,29 +1974,30 @@ function JobOpeningsModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onC
   );
 }
 
-function ArchiveModal({ isOpen, onClose, onConfirm, candidateId }: { isOpen: boolean; onClose: () => void; onConfirm: (reason: string, date?: string) => void; candidateId: number | null }) {
+function ArchiveConfirmationModal({ isOpen, onClose, onConfirm, candidate }: { isOpen: boolean; onClose: () => void; onConfirm: (reason: string, date?: string) => void; candidate: Candidate | null }) {
   const [selectedOption, setSelectedOption] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [terminationDate, setTerminationDate] = useState('');
 
   if (!isOpen) return null;
 
+  const isAppliedStatus = candidate?.status === 'applied';
+
   const handleConfirm = () => {
     const finalReason = selectedOption === 'Outros' ? `Outros: ${customReason}` : selectedOption;
-    if (!finalReason) {
-      alert('Por favor, selecione um motivo para o arquivamento.');
-      return;
-    }
-
-    if (selectedOption !== 'Outros' && !terminationDate) {
-      alert('Por favor, informe a data do desligamento.');
-      return;
-    }
-
+    if (!finalReason) return;
     onConfirm(finalReason, terminationDate);
   };
 
-  const options = [
+  const appliedOptions = [
+    'Fora do Perfil Técnico',
+    'Fora do Perfil Comportamental',
+    'Desistência do Candidato',
+    'Candidato Duplicado',
+    'Outros'
+  ];
+
+  const defaultOptions = [
     'Pedido de Demissão (Iniciativa do Colaborador)',
     'Demissão Sem Justa Causa (Iniciativa da Empresa)',
     'Demissão Por Justa Causa (Falta Grave)',
@@ -1688,87 +2005,160 @@ function ArchiveModal({ isOpen, onClose, onConfirm, candidateId }: { isOpen: boo
     'Outros'
   ];
 
+  const options = isAppliedStatus ? appliedOptions : defaultOptions;
+
   return (
-    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/20 flex items-center justify-center z-[100] animate-in fade-in duration-300">
+    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/20 flex items-center justify-center z-[100] animate-in fade-in duration-300 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="bg-white w-[550px] rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden p-10 space-y-8"
+        className="bg-white w-[500px] rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden p-10 space-y-8"
       >
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 shadow-inner">
-            <Archive size={28} />
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className={cn(
+            "w-20 h-20 rounded-3xl flex items-center justify-center shadow-inner border transition-colors",
+            isAppliedStatus ? "bg-amber-50 text-amber-500 border-amber-100" : "bg-rose-50 text-rose-500 border-rose-100"
+          )}>
+            <Archive size={40} />
           </div>
-          <div>
-            <h3 className="text-xl font-black text-deep-navy tracking-tight uppercase">Arquivar Registro</h3>
-            <p className="text-deep-navy/40 font-bold text-[10px] uppercase tracking-widest mt-0.5">Informe o motivo estratégico do arquivamento.</p>
+          <div className="space-y-2">
+            <h3 className="text-2xl font-black text-deep-navy tracking-tight uppercase">
+              {isAppliedStatus ? "Excluir do Fluxo" : "Arquivar Registro"}
+            </h3>
+            <p className="text-deep-navy/50 font-bold text-xs uppercase tracking-[0.1em] px-4 leading-relaxed">
+              {isAppliedStatus
+                ? "Este talento será removido das etapas ativas mas permanecerá em nossa base histórica para consultas futuras."
+                : "Informe o motivo estratégico e a data efetiva para o arquivamento deste colaborador na base."}
+            </p>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Motivo do Desligamento</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] ml-1">
+              {isAppliedStatus ? "Motivo da Remoção" : "Motivo do Desligamento"}
+            </label>
             <select
               value={selectedOption}
               onChange={(e) => {
                 setSelectedOption(e.target.value);
                 if (e.target.value === 'Outros') setTerminationDate('');
               }}
-              className="premium-input bg-slate-50 border-none h-[56px] px-6 text-sm font-bold text-deep-navy/70 cursor-pointer"
+              className="premium-input bg-slate-50 border-slate-200 h-[54px] px-6 text-sm font-bold text-deep-navy cursor-pointer"
             >
-              <option value="" disabled>Selecione uma opção...</option>
+              <option value="" disabled>Selecione uma justificativa...</option>
               {options.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
           </div>
 
-          {selectedOption && selectedOption !== 'Outros' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="space-y-2"
-            >
-              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Data do Desligamento (Início da Contagem de 10 dias)</label>
-              <input
-                type="date"
-                value={terminationDate}
-                onChange={(e) => setTerminationDate(e.target.value)}
-                className="premium-input bg-slate-50 border-none h-[56px] px-6 text-sm font-bold text-deep-navy/70"
-              />
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {selectedOption && selectedOption !== 'Outros' && !isAppliedStatus && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2.5"
+              >
+                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                  Data do Desligamento <span className="w-1 h-1 bg-rose-400 rounded-full" />
+                </label>
+                <input
+                  type="date"
+                  value={terminationDate}
+                  onChange={(e) => setTerminationDate(e.target.value)}
+                  className="premium-input bg-slate-50 border-slate-200 h-[54px] px-6 text-sm font-bold text-deep-navy"
+                />
+                <p className="text-[9px] font-bold text-rose-500/60 uppercase tracking-widest ml-1 animate-pulse">
+                  Início da contagem de 10 dias para acerto
+                </p>
+              </motion.div>
+            )}
 
-          {selectedOption === 'Outros' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="space-y-2"
-            >
-              <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest ml-1">Descreva o Motivo</label>
-              <textarea
-                autoFocus
-                value={customReason}
-                onChange={(e) => setCustomReason(e.target.value)}
-                className="premium-input bg-slate-50 border-none min-h-[100px] resize-none p-6 text-sm font-medium"
-                placeholder="Informe detalhes adicionais..."
-              />
-            </motion.div>
-          )}
+            {selectedOption === 'Outros' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2.5"
+              >
+                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] ml-1">Complemento do Motivo</label>
+                <textarea
+                  autoFocus
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  className="premium-input bg-slate-50 border-slate-200 min-h-[100px] resize-none p-5 text-sm font-bold text-deep-navy"
+                  placeholder="Forneça detalhes estratégicos sobre esta decisão..."
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="flex gap-4 pt-4">
+        <div className="flex flex-col gap-3 pt-4">
           <button
             onClick={handleConfirm}
-            className="flex-1 px-8 py-3.5 bg-deep-navy text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-primary transition-all shadow-xl shadow-deep-navy/20 active:scale-95 disabled:opacity-50"
-            disabled={!selectedOption || (selectedOption === 'Outros' && !customReason) || (selectedOption !== 'Outros' && !terminationDate)}
+            disabled={!selectedOption || (selectedOption === 'Outros' && !customReason) || (!isAppliedStatus && selectedOption !== 'Outros' && !terminationDate)}
+            className={cn(
+              "w-full py-4.5 font-black uppercase text-xs tracking-[0.2em] rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed",
+              isAppliedStatus
+                ? "bg-amber-500 text-white shadow-amber-500/20 hover:bg-amber-600"
+                : "bg-rose-500 text-white shadow-rose-500/20 hover:bg-rose-600"
+            )}
           >
-            Confirmar Arquivamento
+            {isAppliedStatus ? "Executar Remoção" : "Confirmar Arquivamento"}
           </button>
           <button
             onClick={onClose}
-            className="px-8 py-3.5 bg-slate-100 text-deep-navy font-black uppercase text-xs tracking-widest rounded-xl hover:bg-slate-200 transition-all active:scale-95"
+            className="w-full py-4 text-deep-navy/40 font-black uppercase text-[10px] tracking-[0.2em] hover:text-deep-navy transition-colors"
+          >
+            Manter no Fluxo
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+
+function DeleteConfirmationModal({ isOpen, onClose, onConfirm, title, message }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/20 flex items-center justify-center z-[200] animate-in fade-in duration-300 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="bg-white w-[450px] rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden p-8 space-y-6"
+      >
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 shadow-inner border border-rose-100/50">
+            <Trash2 size={32} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-deep-navy tracking-tight uppercase">{title}</h3>
+            <p className="text-deep-navy/50 font-bold text-[11px] leading-relaxed lowercase first-letter:uppercase tracking-tight">
+              {message}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="flex-1 px-8 py-4 bg-rose-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20 active:scale-95"
+          >
+            Confirmar Exclusão
+          </button>
+          <button
+            onClick={onClose}
+            className="px-8 py-4 bg-slate-100 text-deep-navy font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-slate-200 transition-all active:scale-95"
           >
             Cancelar
           </button>
@@ -1790,214 +2180,239 @@ function EmpregareProfileModal({ isOpen, onClose, data }: { isOpen: boolean; onC
     return new Date(isoStr).toLocaleDateString('pt-BR');
   };
 
+  const getAge = (birthDateStr: string) => {
+    if (!birthDateStr) return '';
+    const today = new Date();
+    const birthDate = new Date(birthDateStr);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return `${age} anos`;
+  };
+
+  const formatSalary = (val: string) => {
+    if (!val) return 'Não informado';
+    if (typeof val === 'string' && val.startsWith('APartir')) {
+      const num = val.replace('APartir', '');
+      return `A partir de R$ ${Number(num).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    }
+    return val;
+  };
+
+  const formatExperiencePeriod = (start: string, end: string, current: boolean) => {
+    const startDate = new Date(start);
+    const endDate = (current || !end || end.startsWith('0001')) ? new Date() : new Date(end);
+
+    const diffInMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+    const years = Math.floor(diffInMonths / 12);
+    const months = diffInMonths % 12;
+
+    let periodStr = '';
+    if (years > 0) periodStr += `${years} ano${years > 1 ? 's' : ''}`;
+    if (months > 0) periodStr += `${years > 0 ? ' e ' : ''}${months} me${months > 1 ? 'ses' : 's'}`;
+
+    const startFormatted = startDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const endFormatted = (current || !end || end.startsWith('0001')) ? 'o momento' : new Date(end).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    return `${startFormatted} até ${endFormatted} (${periodStr})`;
+  };
+
+  const candidate = data.pessoa || data;
+
   return (
-    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/40 flex items-center justify-center z-[150] animate-in fade-in duration-300 p-4 md:p-10">
+    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/40 flex items-center justify-center z-[150] animate-in fade-in duration-300 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-[#f8fbff] w-full max-w-5xl h-full rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col"
+        className="bg-[#f1f4f9] w-full max-w-5xl h-[95vh] rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col"
       >
-        <div className="bg-white px-8 md:px-12 py-6 flex justify-between items-center shrink-0 border-b border-slate-100 relative shadow-sm z-10">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-inner border border-slate-100 bg-slate-50 shrink-0">
-              <img src={data.foto || "https://storage.empregare.com/pessoas/sem-foto.png"} alt="Foto Candidato" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-deep-navy tracking-tight truncate">{data.nome}</h3>
-              <p className="text-primary font-bold text-sm tracking-wide mt-0.5">Dossiê Estratégico do Candidato Integrado</p>
-            </div>
+        {/* Header Bar */}
+        <div className="bg-white px-8 py-4 flex justify-between items-center border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-3 text-deep-navy/70">
+            <FileText size={20} className="text-primary/60" />
+            <h3 className="text-sm font-black uppercase tracking-widest">Visualizar Currículo</h3>
           </div>
-          <button onClick={onClose} className="p-3.5 text-deep-navy/30 hover:text-deep-navy hover:bg-slate-100 rounded-xl transition-all">
-            <X size={24} />
+          <button onClick={onClose} className="p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-deep-navy/20 hover:text-deep-navy">
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 space-y-8">
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Informações Pessoais */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                <User size={16} /> Dados Pessoais
-              </h4>
-              <div className="grid grid-cols-2 gap-6 text-sm">
-                <div>
-                  <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-widest mb-1">Nascimento</p>
-                  <p className="font-bold text-deep-navy/80">{formatDate(data.dataNascimento)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-widest mb-1">Sexo</p>
-                  <p className="font-bold text-deep-navy/80">{data.sexo === 'M' ? 'Masculino' : data.sexo === 'F' ? 'Feminino' : data.sexo}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-widest mb-1">Estado Civil</p>
-                  <p className="font-bold text-deep-navy/80">{data.estadoCivil}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-widest mb-1">Filhos</p>
-                  <p className="font-bold text-deep-navy/80">{data.filhos}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-[9px] font-black text-deep-navy/40 uppercase tracking-widest mb-1">Localidade</p>
-                  <p className="font-bold text-deep-navy/80">
-                    {data.localidade?.cidade} - {data.localidade?.estado} <br />
-                    <span className="text-xs text-deep-navy/50 font-medium">{data.localidade?.logradouro}, {data.localidade?.bairro}</span>
-                  </p>
-                </div>
-              </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          {/* Header Card */}
+          <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-10 mb-6 flex flex-col md:flex-row gap-10 items-start">
+            <div className="w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-inner shrink-0 bg-slate-50 flex items-center justify-center">
+              <img src={candidate.foto || "https://storage.empregare.com/pessoas/sem-foto.png"} alt="Foto" className="w-full h-full object-cover" />
             </div>
 
-            {/* Contatos */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-              <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                <Network size={16} /> Contato & Redes
-              </h4>
-              <div className="flex flex-col gap-5 text-sm">
-                <div className="flex items-center gap-3">
-                  <Mail size={16} className="text-deep-navy/40" />
-                  <p className="font-bold text-deep-navy/80 truncate flex-1">{data.email}</p>
+            <div className="flex-1 space-y-4">
+              <h1 className="text-4xl font-black text-deep-navy tracking-tight">{candidate.nome}</h1>
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm font-bold text-deep-navy/60">
+                  {candidate.sexo === 'M' ? 'Masculino' : candidate.sexo === 'F' ? 'Feminino' : candidate.sexo}, {getAge(candidate.dataNascimento)}
+                </span>
+                <span className="bg-slate-100 text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-lg text-deep-navy/40 border border-slate-200/60">
+                  {candidate.curriculo?.deficiencia?.length > 0 ? candidate.curriculo.deficiencia.join(', ') : 'Não informou dados de Diversidade'}
+                </span>
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <div className="flex items-center gap-3 text-deep-navy/50 text-xs font-bold">
+                  <Scan size={16} className="text-primary/40" />
+                  {candidate.localidade?.bairro} - {candidate.localidade?.cidade}, {candidate.localidade?.estado}, {candidate.localidade?.pais}
                 </div>
-                <div className="flex items-center gap-3">
-                  <UserSearch size={16} className="text-deep-navy/40" />
-                  <p className="font-bold text-deep-navy/80">{data.celular || data.telefone}</p>
-                </div>
-                {/* Redes Sociais */}
-                {data.curriculo?.redeSocial?.length > 0 && (
-                  <div className="pt-4 mt-2 border-t border-slate-50 flex flex-col gap-3">
-                    {data.curriculo.redeSocial.map((social: any, idx: number) => (
-                      <a key={idx} href={`https://${social.url.replace(/^https?:\/\//, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[11px] font-black tracking-widest uppercase text-indigo-600 hover:text-indigo-800 transition-colors">
-                        <Globe size={14} /> {social.id}: {social.url}
-                      </a>
-                    ))}
-                  </div>
+                {candidate.localidade?.logradouro && (
+                  <p className="text-deep-navy/40 text-[11px] font-bold ml-7">
+                    {candidate.localidade.logradouro}, CEP: {candidate.localidade.cep}
+                  </p>
                 )}
+
+                <div className="flex flex-wrap gap-6 mt-4">
+                  <div className="flex items-center gap-3 text-deep-navy/60 text-xs font-bold">
+                    <UserSearch size={16} className="text-primary/40" />
+                    {candidate.celularPaisCode || '+55'} {candidate.celular || candidate.telefone} (celular)
+                  </div>
+                  <a href={`mailto:${candidate.email}`} className="flex items-center gap-3 text-primary text-xs font-bold hover:underline">
+                    <Mail size={16} className="text-primary/40" />
+                    {candidate.email}
+                  </a>
+                </div>
+
+                <div className="flex gap-2.5 pt-6">
+                  {candidate.curriculo?.redeSocial?.find((r: any) => r.id === 'LinkedIn') && (
+                    <a href={`https://${candidate.curriculo.redeSocial.find((r: any) => r.id === 'LinkedIn').url.replace(/^https?:\/\//, '')}`} target="_blank" className="w-9 h-9 rounded-xl bg-[#0A66C2] flex items-center justify-center text-white shadow-md hover:scale-105 transition-transform">
+                      <Linkedin size={18} fill="currentColor" />
+                    </a>
+                  )}
+                  <a href="#" className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FFB347] via-[#FFCC33] to-[#FFB347] flex items-center justify-center text-white shadow-md hover:scale-105 transition-transform">
+                    <Instagram size={18} />
+                  </a>
+                  <a href={`https://wa.me/${candidate.celular?.replace(/\D/g, '') || candidate.telefone?.replace(/\D/g, '')}`} target="_blank" className="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center text-white shadow-md hover:scale-105 transition-transform">
+                    <MessageCircle size={18} fill="currentColor" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Currículo e Síntese */}
-          {data.curriculo && (
-            <div className="space-y-8">
-              {data.curriculo.sintese && (
-                <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                    <FileText size={16} /> Síntese Profissional
-                  </h4>
-                  <p className="text-deep-navy/70 leading-relaxed text-sm font-medium whitespace-pre-line">
-                    {data.curriculo.sintese}
+          <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 items-start">
+            {/* Sidebar Left */}
+            <div className="bg-white rounded-3xl border border-slate-200/60 p-8 space-y-10 shadow-sm overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-1 h-full bg-slate-50" />
+
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">ÁREA DE INTERESSE</h4>
+                <div className="flex flex-wrap gap-2">
+                  {candidate.curriculo?.areas?.map((area: any) => (
+                    <span key={area.id} className="bg-indigo-50/50 text-indigo-600 px-3 py-1.5 rounded-lg text-[10px] font-black border border-indigo-100/30">
+                      {area.nome}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">PRETENSÃO SALARIAL</h4>
+                <p className="text-[13px] font-bold text-deep-navy/70">{formatSalary(candidate.curriculo?.pretensaoSalarial)}</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">ESTADO CIVIL</h4>
+                <p className="text-[13px] font-bold text-deep-navy/70">{candidate.estadoCivil || 'Não informado'}</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">DATA DE NASCIMENTO</h4>
+                <p className="text-[13px] font-bold text-deep-navy/70">{(candidate.dataNascimento?.split('T')[0] || 'N/A')} ({getAge(candidate.dataNascimento)})</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">ÚLTIMA ATUALIZAÇÃO</h4>
+                <p className="text-[13px] font-bold text-deep-navy/70">{candidate.dataAtualizacao ? `${formatDate(candidate.dataAtualizacao)} ${candidate.dataAtualizacao.split('T')[1]?.slice(0, 5)}` : 'N/A'}</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-deep-navy/40 uppercase tracking-[0.2em] border-l-4 border-slate-100 pl-4">CÓDIGO</h4>
+                <p className="text-[13px] font-bold text-deep-navy/70">{candidate.id}</p>
+              </div>
+            </div>
+
+            {/* Content Right */}
+            <div className="bg-white rounded-3xl border border-slate-200/60 p-10 space-y-12 shadow-sm">
+              {/* Resumo Profissional */}
+              <div className="flex gap-6">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0 border border-indigo-100/50">
+                  <FileText size={20} />
+                </div>
+                <div className="space-y-4 flex-1">
+                  <h4 className="text-xl font-black text-deep-navy tracking-tight">Resumo Profissional</h4>
+                  <p className="text-sm text-deep-navy/70 leading-relaxed font-medium whitespace-pre-line">
+                    {candidate.curriculo?.sintese || 'Não informado.'}
                   </p>
                 </div>
-              )}
+              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Experiências Profissionais */}
-                {data.curriculo.experiencia?.length > 0 && (
-                  <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm col-span-1 lg:col-span-2">
-                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                      <Briefcase size={16} /> Histórico Profissional
-                    </h4>
-                    <div className="space-y-8">
-                      {data.curriculo.experiencia.map((exp: any, idx: number) => (
-                        <div key={idx} className="relative pl-6 border-l-2 border-slate-100/60 pb-8 last:pb-0">
-                          <div className="absolute w-3 h-3 bg-primary rounded-full -left-[7px] top-1.5 ring-4 ring-white" />
-                          <h5 className="font-black text-lg text-deep-navy">{exp.cargo}</h5>
-                          <h6 className="font-bold text-deep-navy/50 text-sm">{exp.empresa} {exp.cidade ? `— ${exp.cidade}` : ''}</h6>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary/60 mt-1.5 mb-4">
-                            {formatDate(exp.dataInicio)} até {exp.atual ? 'O Momento' : formatDate(exp.dataFim)}
-                          </p>
-                          <p className="text-sm text-deep-navy/70 leading-relaxed font-medium whitespace-pre-line">{exp.descricao}</p>
-                          {exp.resultado && (
-                            <div className="mt-4 bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Resultados Atingidos</p>
-                              <p className="text-xs text-emerald-700 font-medium">{exp.resultado}</p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              {/* Formação */}
+              <div className="flex gap-6">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0 border border-indigo-100/50">
+                  <Network size={20} />
+                </div>
+                <div className="space-y-8 flex-1">
+                  <h4 className="text-xl font-black text-deep-navy tracking-tight border-b border-slate-50 pb-4">Formação</h4>
+                  <div className="space-y-8">
+                    {candidate.curriculo?.formacao?.map((form: any, idx: number) => (
+                      <div key={idx} className="space-y-2">
+                        <h5 className="font-black text-lg text-deep-navy">{form.grauNome}</h5>
+                        <p className="text-sm font-bold text-deep-navy/60">{form.curso} - {form.local}</p>
+                        <p className="text-xs text-deep-navy/40 font-black uppercase tracking-widest">
+                          de {new Date(form.dataInicio).getMonth() + 1}/{new Date(form.dataInicio).getFullYear()} a {form.incompleto ? 'cursando' : `${new Date(form.dataFim).getMonth() + 1}/${new Date(form.dataFim).getFullYear()}`} ({form.incompleto ? 'cursando' : 'concluído'})
+                        </p>
+                      </div>
+                    ))}
+                    {(!candidate.curriculo?.formacao || candidate.curriculo.formacao.length === 0) && (
+                      <p className="text-sm text-deep-navy/40 font-bold">Nenhuma formação registrada.</p>
+                    )}
                   </div>
-                )}
+                </div>
+              </div>
 
-                {/* Formação Acadêmica */}
-                {data.curriculo.formacao?.length > 0 && (
-                  <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm w-full">
-                    <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                      <FileText size={16} /> Formação Acadêmica
-                    </h4>
-                    <div className="space-y-6">
-                      {data.curriculo.formacao.map((form: any, idx: number) => (
-                        <div key={idx}>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/80 mb-1">{form.grauNome}</p>
-                          <h6 className="font-black text-deep-navy">{form.curso}</h6>
-                          <p className="text-sm font-bold text-deep-navy/60">{form.local}</p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-deep-navy/30 mt-1">
-                            {form.incompleto ? 'Incompleto/Cursando' : `Conclusão em ${formatDate(form.dataFim)}`}
+              {/* Experiência */}
+              <div className="flex gap-6">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0 border border-indigo-100/50">
+                  <Briefcase size={20} />
+                </div>
+                <div className="space-y-10 flex-1">
+                  <h4 className="text-xl font-black text-deep-navy tracking-tight border-b border-slate-50 pb-4">Experiência</h4>
+                  <div className="space-y-12">
+                    {candidate.curriculo?.experiencia?.map((exp: any, idx: number) => (
+                      <div key={idx} className="space-y-4">
+                        <div className="space-y-1">
+                          <h5 className="font-black text-xl text-deep-navy">{exp.cargo}</h5>
+                          <div className="flex items-center gap-3 text-sm font-bold text-deep-navy/50">
+                            {exp.empresa} <span className="w-1 h-1 bg-slate-300 rounded-full" /> <span className="flex items-center gap-1.5"><Scan size={12} /> {exp.cidade}</span>
+                          </div>
+                          <p className="text-xs text-deep-navy/30 font-black uppercase tracking-[0.1em] mt-1">
+                            {formatExperiencePeriod(exp.dataInicio, exp.dataFim, exp.atual)}
                           </p>
                         </div>
-                      ))}
-                    </div>
+                        <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100/50">
+                          <p className="text-[10px] font-black text-deep-navy/80 uppercase tracking-[0.2em] mb-3">Atividades:</p>
+                          <p className="text-sm text-deep-navy/70 leading-relaxed font-medium whitespace-pre-line">
+                            {exp.descricao || 'Atividades não descritas.'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {(!candidate.curriculo?.experiencia || candidate.curriculo.experiencia.length === 0) && (
+                      <p className="text-sm text-deep-navy/40 font-bold">Nenhuma experiência registrada.</p>
+                    )}
                   </div>
-                )}
-
-                {/* Idiomas & Informática / Cursos */}
-                <div className="space-y-8 w-full">
-                  {data.curriculo.idioma?.length > 0 && (
-                    <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-                      <h4 className="text-[10px] font-black text-sky-500 uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                        <Globe size={16} /> Idiomas
-                      </h4>
-                      <div className="space-y-4">
-                        {data.curriculo.idioma.map((idioma: any, idx: number) => (
-                          <div key={idx} className="flex flex-col gap-1">
-                            <span className="font-black text-deep-navy text-sm">{idioma.idioma}</span>
-                            <div className="flex gap-2 text-[10px] font-bold uppercase tracking-widest text-deep-navy/40 flex-wrap">
-                              <span className="bg-slate-50 px-2 py-1 rounded-md">Lê: {idioma.nivelLeitura}</span>
-                              <span className="bg-slate-50 px-2 py-1 rounded-md">Escreve: {idioma.nivelEscrita}</span>
-                              <span className="bg-slate-50 px-2 py-1 rounded-md">Fala: {idioma.nivelConversacao}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {data.curriculo.informatica?.length > 0 && (
-                    <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-                      <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                        <Scan size={16} /> Informática & Ferramentas
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {data.curriculo.informatica.map((info: any, idx: number) => (
-                          <div key={idx} className="bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg flex gap-2 items-center">
-                            <span className="text-xs font-black text-emerald-700">{info.nome}</span>
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/60 leading-none">{info.nivel}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {data.curriculo.curso?.length > 0 && (
-                    <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-                        <TrendingUp size={16} /> Cursos Complementares
-                      </h4>
-                      <div className="space-y-4">
-                        {data.curriculo.curso.map((curso: any, idx: number) => (
-                          <div key={idx}>
-                            <h6 className="font-black text-deep-navy text-sm">{curso.curso}</h6>
-                            <p className="text-xs font-bold text-deep-navy/60">{curso.local} ({curso.anoConclusao}) — {curso.horas}h</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
-          )}
-
+          </div>
         </div>
       </motion.div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Shield, Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle, Building } from 'lucide-react';
+import { authService } from '../lib/supabase-service';
 
 interface LoginViewProps {
     onLogin: (user: any) => void;
@@ -27,25 +28,10 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                if (data.user.requiresPasswordChange) {
-                    setTempUser(data.user);
-                    setIsChangingPassword(true);
-                } else {
-                    onLogin(data.user);
-                }
-            } else {
-                setError(data.error);
-            }
-        } catch (err) {
-            setError('Erro de conexão com o servidor.');
+            const result = await authService.login(email, password);
+            onLogin(result.user);
+        } catch (err: any) {
+            setError(err.message || 'Erro de conexão com o servidor.');
         } finally {
             setLoading(false);
         }
@@ -57,8 +43,8 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             setError('As senhas não coincidem.');
             return;
         }
-        if (newPassword.length < 4) {
-            setError('A senha deve ter pelo menos 4 caracteres.');
+        if (newPassword.length < 6) {
+            setError('A senha deve ter pelo menos 6 caracteres.');
             return;
         }
 
@@ -66,20 +52,10 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/change-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: tempUser.email, newPassword }),
-            });
-
-            if (res.ok) {
-                onLogin({ ...tempUser, requiresPasswordChange: false });
-            } else {
-                const data = await res.json();
-                setError(data.error);
-            }
-        } catch (err) {
-            setError('Erro ao alterar senha.');
+            await authService.changePassword(newPassword);
+            onLogin({ ...tempUser, requiresPasswordChange: false });
+        } catch (err: any) {
+            setError(err.message || 'Erro ao alterar senha.');
         } finally {
             setLoading(false);
         }
@@ -91,21 +67,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, area }),
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                setSuccess('Solicitação enviada! Aguarde a liberação de um gestor.');
-                setIsRegistering(false);
-            } else {
-                setError(data.error);
-            }
-        } catch (err) {
-            setError('Erro ao processar registro.');
+            await authService.register(name, email, password, area);
+            setSuccess('Solicitação enviada! Aguarde a liberação de um gestor.');
+            setIsRegistering(false);
+        } catch (err: any) {
+            setError(err.message || 'Erro ao processar registro.');
         } finally {
             setLoading(false);
         }
