@@ -3,6 +3,8 @@ import { Suspense, lazy, useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import LoginView from './pages/LoginView';
+import { supabase } from './lib/supabase';
+import { authService } from './lib/supabase-service';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -19,9 +21,28 @@ export default function App() {
   const isPublicRoute = window.location.pathname.startsWith('/disc-assessment');
 
   useEffect(() => {
+    // 1. Check local storage first for speed
     const saved = localStorage.getItem('gestor_gn_user');
     if (saved) setUser(JSON.parse(saved));
+
+    // 2. Listen for Supabase Auth changes (including Recovery)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth Event:', event);
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        const profile = await authService.getCurrentProfile();
+        if (profile) {
+          handleLogin(profile);
+        }
+      }
+
+      if (event === 'SIGNED_OUT') {
+        handleLogout();
+      }
+    });
+
     setLoading(false);
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = (userData: any) => {

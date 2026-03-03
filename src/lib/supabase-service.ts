@@ -81,8 +81,21 @@ export const authService = {
     },
 
     async changePassword(newPassword: string) {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) throw new Error(error.message);
+        // 1. Update password in Supabase Auth
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Usuário não autenticado.');
+
+        const { error: authErr } = await supabase.auth.updateUser({ password: newPassword });
+        if (authErr) throw new Error(authErr.message);
+
+        // 2. Clear force change flag in profiles
+        const { error: profileErr } = await supabase
+            .from('profiles')
+            .update({ must_change_password: false })
+            .eq('id', user.id);
+
+        if (profileErr) throw new Error('Erro ao atualizar status do perfil.');
+
         return { success: true };
     },
 

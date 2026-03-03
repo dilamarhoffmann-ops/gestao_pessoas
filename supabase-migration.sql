@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   area TEXT,
   allowed_menus TEXT,
   approver BOOLEAN DEFAULT false,
+  must_change_password BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

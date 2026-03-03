@@ -29,7 +29,12 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
         try {
             const result = await authService.login(email, password);
-            onLogin(result.user);
+            if (result.user.must_change_password) {
+                setTempUser(result.user);
+                setIsChangingPassword(true);
+            } else {
+                onLogin(result.user);
+            }
         } catch (err: any) {
             setError(err.message || 'Erro de conexão com o servidor.');
         } finally {
@@ -120,9 +125,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                     />
                     Lembrar-me
                 </label>
-                <span className="text-xs text-gray-400 italic">
-                    Esqueceu a senha? Solicite a um gestor.
-                </span>
+                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">
+                    Esqueceu a senha? Contate o Gestor.
+                </div>
             </div>
 
             <button
@@ -251,10 +256,25 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                 ) : (
                     <>
                         <CheckCircle size={16} />
-                        Salvar e Acessar
+                        Salvar e Acessar Sistema
                     </>
                 )}
             </button>
+
+            {/* Only show cancel button if password change is NOT mandatory */}
+            {(!tempUser || !tempUser.must_change_password) && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setIsChangingPassword(false);
+                        setError('');
+                        setSuccess('');
+                    }}
+                    className="mt-4 text-xs text-gray-500 hover:text-deep-navy font-bold uppercase tracking-widest text-center"
+                >
+                    Cancelar
+                </button>
+            )}
         </form>
     );
 
