@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "dev:safe": "pwsh -ExecutionPolicy Bypass -File dev.ps1",
-    "kill-ports": "pwsh -Command \"Get-NetTCPConnection -LocalPort 3000,24678 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Where-Object { $_ -gt 4 } | Sort-Object -Unique | ForEach-Object { taskkill /F /PID $_ }\"",
+    "kill-ports": "pwsh -Command \"Get-NetTCPConnection -LocalPort 5000,24678 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Where-Object { $_ -gt 4 } | Sort-Object -Unique | ForEach-Object { taskkill /F /PID $_ }\"",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -17,7 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1000.0",
     "@google/genai": "^1.29.0",
     "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.97.0",
+    "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "better-sqlite3": "^12.4.1",

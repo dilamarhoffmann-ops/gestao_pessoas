@@ -8,11 +8,20 @@ import fs from 'fs';
 import { OpenAI } from 'openai';
 import { createRequire } from 'module';
 import { uploadFile } from './src/lib/s3';
+import { createClient } from '@supabase/supabase-js';
+
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 
 const app = express();
 const PORT = 3000;
+
+// Setup Supabase Admin Client
+const supabaseAdminUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAdmin = createClient(supabaseAdminUrl, supabaseServiceKey || 'dummy_key', {
+  auth: { autoRefreshToken: false, persistSession: false }
+});
 
 app.use(express.json());
 
@@ -714,6 +723,38 @@ app.delete('/api/companies/:id', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao excluir empresa.' });
+  }
+});
+
+// Users Profile / Management overrides
+app.post('/api/users/:id/force-reset', async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+
+  if (!supabaseServiceKey || supabaseServiceKey === 'dummy_key') {
+    return res.status(500).json({ error: 'Falta a variável SUPABASE_SERVICE_ROLE_KEY ou VITE_SUPABASE_SERVICE_ROLE_KEY no .env do servidor.' });
+  }
+
+  try {
+    // 1. Update Password in Supabase Auth
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      password: newPassword
+    });
+
+    if (authError) throw authError;
+
+    // 2. Set 'must_change_password' to true in profiles
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[API] Erro ao resetar a senha:', err);
+    res.status(500).json({ error: err.message || 'Erro ao forçar o reset de senha' });
   }
 });
 
