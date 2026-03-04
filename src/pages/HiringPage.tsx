@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, User, Users, Mail, ArrowRight, CheckCircle, Search, Filter, Briefcase, ChevronRight, X, FileText, Paperclip, Upload, Scan, Download, Globe, UserSearch, Network, Handshake, TrendingUp, Trash2, Edit, Archive, Clock, Linkedin, Instagram, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { candidatesService, jobOpeningsService } from '../lib/supabase-service';
+import { supabase } from '../lib/supabase';
 
 type Candidate = {
   id: number;
@@ -85,6 +86,7 @@ export default function HiringPage() {
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isCandidatesModalOpen, setIsCandidatesModalOpen] = useState(false);
+  const [isEmpregareImportModalOpen, setIsEmpregareImportModalOpen] = useState(false);
   const [candidateToArchive, setCandidateToArchive] = useState<Candidate | null>(null);
   const [candidateToEdit, setCandidateToEdit] = useState<Candidate | null>(null);
   const navigate = useNavigate();
@@ -94,8 +96,13 @@ export default function HiringPage() {
   }, []);
 
   const fetchCandidates = async () => {
-    const data = await candidatesService.getAll();
-    setCandidates(data as Candidate[]);
+    try {
+      const data = await candidatesService.getAll();
+      setCandidates(data as Candidate[]);
+    } catch (e) {
+      console.error('Failed to fetch candidates:', e);
+      alert('Failed to fetch candidates');
+    }
   };
 
   const handleEditCandidate = (candidate: Candidate) => {
@@ -200,6 +207,12 @@ export default function HiringPage() {
               className="flex-1 md:flex-none px-6 py-3.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-deep-navy flex items-center justify-center gap-2 hover:border-primary/30 transition-all shadow-sm"
             >
               <Users size={18} className="text-primary" /> Candidatos
+            </button>
+            <button
+              onClick={() => setIsEmpregareImportModalOpen(true)}
+              className="flex-1 md:flex-none px-6 py-3.5 bg-sky-600 text-white border border-sky-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sky-700 transition-all shadow-sm shadow-sky-600/20"
+            >
+              <Download size={18} /> Importar Empregare
             </button>
           </div>
         </div>
@@ -365,6 +378,13 @@ export default function HiringPage() {
               handleRestart(id, 'applied');
               setIsCandidatesModalOpen(false);
             }}
+          />
+        )}
+        {isEmpregareImportModalOpen && (
+          <EmpregareImportModal
+            isOpen={isEmpregareImportModalOpen}
+            onClose={() => setIsEmpregareImportModalOpen(false)}
+            onImported={() => { fetchCandidates(); setIsEmpregareImportModalOpen(false); }}
           />
         )}
       </AnimatePresence>
@@ -837,7 +857,9 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit, handle
   };
 
   useEffect(() => {
-    jobOpeningsService.getAll().then(data => setJobOpenings(data as any[]));
+    jobOpeningsService.getAll()
+      .then(data => setJobOpenings(data ?? []))
+      .catch(err => console.error('[NewCandidateModal] Erro ao carregar vagas:', err));
   }, []);
 
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1614,9 +1636,9 @@ function CandidatesManagementModal({ isOpen, onClose, candidates, onEdit, onNew,
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = candidates.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.position || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -1752,18 +1774,96 @@ function CandidatesManagementModal({ isOpen, onClose, candidates, onEdit, onNew,
 
 function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: boolean; onClose: () => void; onCreated: () => void; onDelete: (id: number, name: string) => void }) {
   const [isCreating, setIsCreating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+  const [jobFetchError, setJobFetchError] = useState<string | null>(null);
   const [jobOpenings, setJobOpenings] = useState<any[]>([]);
   const [jobToEdit, setJobToEdit] = useState<any | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
   const fetchJobs = async () => {
-    const data = await jobOpeningsService.getAll();
-    setJobOpenings(data as any[]);
+    setIsLoadingJobs(true);
+    setJobFetchError(null);
+    try {
+      // Direct REST API call — bypasses JS client session issues
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/job_openings?select=*&order=created_at.desc`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errBody}`);
+      }
+      const data = await res.json();
+      console.log('[JobOpenings] fetched via REST:', data?.length);
+      setJobOpenings(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('[JobOpenings] Erro REST:', err);
+      setJobFetchError(err?.message || 'Erro desconhecido');
+    } finally {
+      setIsLoadingJobs(false);
+    }
   };
 
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  const handleSyncEmpregare = async () => {
+    setIsSyncing(true);
+    try {
+      // 1. Listar vagas via proxy
+      const res = await fetch('/api/empregare/proxy?endpoint=vaga/listar&quantidade=50');
+      const data = await res.json();
+      if (!data.vagas) throw new Error('Nenhuma vaga retornada pela API.');
+
+      let count = 0;
+      for (const v of data.vagas) {
+        // 2. Obter detalhes para pegar salário e setores
+        const dRes = await fetch(`/api/empregare/proxy?endpoint=vaga/detalhes/${v.ID}`);
+        const dData = await dRes.json();
+        const details = dData.vaga || {};
+
+        const rawSalario = details.salario;
+        const salaryValue = (typeof rawSalario === 'object' && rawSalario !== null)
+          ? (rawSalario.salarioInicial || 0)
+          : (parseFloat(rawSalario as any) || 0);
+
+        const jobPayload = {
+          title: details.titulo || v.Titulo,
+          open_positions: details.totalVagas || 1,
+          department: (details.setores && details.setores.length > 0) ? details.setores[0].Nome : 'Operações',
+          skills: (details.requisito || 'Consultar na Empregare').replace(/<[^>]*>/g, ''),
+          salary: salaryValue
+        };
+
+        // 3. Upsert no Supabase
+        // Como o serviço não tem upsert exposto com conflito de título, vamos simplificar criando se não existir
+        const existing = jobOpenings.find(j => j.title === jobPayload.title);
+        if (existing) {
+          await jobOpeningsService.update(existing.id, jobPayload);
+        } else {
+          await jobOpeningsService.create(jobPayload);
+        }
+        count++;
+      }
+      alert(`${count} vagas processadas com sucesso!`);
+      await fetchJobs();
+    } catch (error: any) {
+      console.error(error);
+      alert('Erro na sincronização: ' + error.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleEditJob = (job: any) => {
     setJobToEdit(job);
@@ -1850,12 +1950,21 @@ function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: bo
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => { setIsCreating(true); setSelectedDepartment(''); }}
-                className="px-8 py-3.5 bg-deep-blue text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-primary transition-all flex items-center gap-3 shadow-xl shadow-deep-blue/20"
-              >
-                <Plus size={18} /> Nova Vaga
-              </button>
+              <>
+                <button
+                  onClick={handleSyncEmpregare}
+                  disabled={isSyncing}
+                  className="px-8 py-3.5 bg-sky-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-sky-700 transition-all flex items-center gap-3 shadow-xl shadow-sky-600/20 disabled:opacity-50"
+                >
+                  <Download size={18} /> {isSyncing ? "Sincronizando..." : "Sincronizar Empregare"}
+                </button>
+                <button
+                  onClick={() => { setIsCreating(true); setSelectedDepartment(''); }}
+                  className="px-8 py-3.5 bg-deep-blue text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-primary transition-all flex items-center gap-3 shadow-xl shadow-deep-blue/20"
+                >
+                  <Plus size={18} /> Nova Vaga
+                </button>
+              </>
             )}
             <button
               onClick={onClose}
@@ -1941,29 +2050,49 @@ function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: bo
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {jobOpenings.map(job => (
-                  <div key={job.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 hover:shadow-premium hover:border-primary/20 transition-all relative group">
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEditJob(job)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Editar Vaga">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => handleDeleteJobInternal(job.id, job.title)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir Vaga">
-                        <Trash2 size={16} />
-                      </button>
+                {isLoadingJobs ? (
+                  <div className="col-span-full py-16 flex flex-col items-center gap-4">
+                    <div style={{ position: 'relative', width: '13.6px', height: '48px' }}>
+                      <div className="jimu-primary-loading" />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-lg text-deep-navy pr-16">{job.title}</h4>
-                      <p className="text-sm font-bold text-deep-navy/40">{job.department}</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm text-deep-navy/60"><strong>Vagas em aberto:</strong> {job.open_positions}</p>
-                      <p className="text-sm text-deep-navy/60"><strong>Salário:</strong> R$ {Number(job.salary).toFixed(2)}</p>
-                      <p className="text-sm text-deep-navy/60 max-h-16 overflow-hidden text-ellipsis line-clamp-2"><strong>Habilidades:</strong> {job.skills}</p>
-                    </div>
+                    <span className="jimu-loader-label">Carregando vagas...</span>
                   </div>
-                ))}
-                {jobOpenings.length === 0 && (
-                  <div className="col-span-full py-12 text-center text-deep-navy/40 font-bold">Nenhuma vaga cadastrada. Cadastre a primeira oportunidade de sua equipe!</div>
+                ) : (
+                  <>
+                    {jobFetchError && (
+                      <div className="col-span-full py-8 flex flex-col items-center gap-4 bg-red-50 rounded-3xl border border-red-100 px-8">
+                        <p className="text-xs font-black text-red-600 uppercase tracking-widest">Erro ao carregar vagas</p>
+                        <p className="text-xs text-red-500 font-mono text-center break-all">{jobFetchError}</p>
+                        <button onClick={fetchJobs} className="px-6 py-2 bg-red-100 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-200 transition-all">
+                          Tentar novamente
+                        </button>
+                      </div>
+                    )}
+                    {!jobFetchError && jobOpenings.map(job => (
+                      <div key={job.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 hover:shadow-premium hover:border-primary/20 transition-all relative group">
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleEditJob(job)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Editar Vaga">
+                            <Edit size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteJobInternal(job.id, job.title)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir Vaga">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg text-deep-navy pr-16">{job.title}</h4>
+                          <p className="text-sm font-bold text-deep-navy/40">{job.department}</p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-sm text-deep-navy/60"><strong>Vagas em aberto:</strong> {job.open_positions}</p>
+                          <p className="text-sm text-deep-navy/60"><strong>Salário:</strong> R$ {Number(job.salary || 0).toFixed(2)}</p>
+                          <p className="text-sm text-deep-navy/60 max-h-16 overflow-hidden text-ellipsis line-clamp-2"><strong>Habilidades:</strong> {job.skills}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {jobOpenings.length === 0 && (
+                      <div className="col-span-full py-12 text-center text-deep-navy/40 font-bold">Nenhuma vaga cadastrada. Cadastre a primeira oportunidade de sua equipe!</div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -2414,6 +2543,416 @@ function EmpregareProfileModal({ isOpen, onClose, data }: { isOpen: boolean; onC
             </div>
           </div>
         </div>
+      </motion.div>
+    </div>
+  );
+}
+
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+// COMPONENT: Empregare Batch Import Modal (v2 — vaga-linked)
+// Step 1: Fetch vagas from Empregare  →  Step 2: Select vagas  →  Step 3: Fetch+preview candidates per vaga  →  Step 4: Import
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+type EmpregareImportStep = 'loading_vagas' | 'select_vagas' | 'loading_candidates' | 'preview' | 'importing' | 'done' | 'error';
+
+type EmpregareVaga = {
+  id: number;
+  titulo: string;
+  selected: boolean;
+};
+
+type EmpregareImportCandidate = {
+  id: number | string;
+  nome: string;
+  email: string;
+  celular?: string;
+  cpf?: string;
+  telefone?: string;
+  sexo?: string;
+  dataNascimento?: string;
+  estadoCivil?: string;
+  localidade?: any;
+  curriculo?: any;
+  foto?: string;
+  vagaTitulo: string; // vaga automatically linked
+  vagaId: number;
+  selected: boolean;
+};
+
+function EmpregareImportModal({ isOpen, onClose, onImported }: { isOpen: boolean; onClose: () => void; onImported: () => void }) {
+  const [step, setStep] = useState<EmpregareImportStep>('loading_vagas');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [vagas, setVagas] = useState<EmpregareVaga[]>([]);
+  const [candidates, setCandidates] = useState<EmpregareImportCandidate[]>([]);
+  const [importedCount, setImportedCount] = useState(0);
+
+  // Auto-fetch vagas on open
+  useEffect(() => {
+    if (isOpen) fetchVagas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const selectedVagas = vagas.filter(v => v.selected);
+  const selectedCandidates = candidates.filter(c => c.selected);
+
+  // ----- Fetch vagas from Empregare -----
+  const fetchVagas = async () => {
+    setStep('loading_vagas');
+    setErrorMsg('');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/empregare-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ url: '/vaga/listar?quantidade=50' })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao conectar com a function (Status: ${response.status})`);
+      }
+
+      const data = await response.json();
+      const list: any[] = data?.vagas || [];
+      if (list.length === 0) throw new Error('Nenhuma vaga ativa encontrada na Empregare.');
+      setVagas(list.map(v => ({ id: v.ID, titulo: v.Titulo, selected: false })));
+      setStep('select_vagas');
+    } catch (err: any) {
+      console.error('FETCH VAGAS ERROR:', err);
+      setErrorMsg(err.message || 'Erro ao buscar vagas da Empregare.');
+      setStep('error');
+    }
+  };
+
+  // ----- Fetch candidates for selected vagas -----
+  const fetchCandidatesForVagas = async () => {
+    if (selectedVagas.length === 0) return;
+    setStep('loading_candidates');
+    setErrorMsg('');
+    const all: EmpregareImportCandidate[] = [];
+    try {
+      const { data: dbCands } = await supabase.from('candidates').select('raw_data');
+      const knownCPFs = new Set(
+        (dbCands || [])
+          .map((c: any) => c.raw_data?.cpf)
+          .filter((cpf: any) => Boolean(cpf))
+      );
+
+      for (const vaga of selectedVagas) {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/empregare-proxy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ url: `/Pessoas?pagina=1&itensPorPagina=15&idVaga=${vaga.id}` })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.log('Error data from Edge:', data);
+          // Convert explicit known 503/HTML errors to a better message
+          if (data.error && (data.error.includes("Erro em nossos servidores") || data.error.includes("Non-JSON"))) {
+            throw new Error(`A API da Empregare está instável e retornou um "Erro em nossos servidores" (Sistêmico da Empregare) para a vaga ${vaga.titulo}. Tente mais tarde.`);
+          }
+          throw new Error(data.error || `Erro HTTP ${response.status}`);
+        }
+
+        const list: any[] = (data?.pessoas || []).filter((p: any) => p !== null);
+
+        for (const p of list) {
+          // Avoid duplicates
+          const alreadyIn = all.some(c => c.id === (p.idPessoa || p.id));
+          const inDb = p.cpf && knownCPFs.has(p.cpf);
+
+          if (!alreadyIn && !inDb) {
+            all.push({
+              id: p.idPessoa || p.id || `${vaga.id}-${Math.random()}`,
+              nome: p.nome || '—',
+              email: p.email || '',
+              celular: p.celular || p.telefone || '',
+              cpf: p.cpf,
+              telefone: p.telefone,
+              sexo: p.sexo,
+              dataNascimento: p.dataNascimento,
+              estadoCivil: p.estadoCivil,
+              localidade: p.localidade,
+              curriculo: p.curriculo,
+              foto: p.foto,
+              vagaTitulo: vaga.titulo,
+              vagaId: vaga.id,
+              selected: true,
+            });
+          }
+        }
+      }
+      if (all.length === 0) {
+        throw new Error('Nenhum candidato encontrado nas vagas selecionadas.');
+      }
+      setCandidates(all);
+      setStep('preview');
+    } catch (err: any) {
+      console.error('FETCH CANDIDATES ERROR:', err);
+      setErrorMsg(err.message || 'Erro ao buscar candidatos.');
+      setStep('error');
+    }
+  };
+
+  // ----- Import selected candidates -----
+  const buildObs = (p: EmpregareImportCandidate) => {
+    let t = '';
+    const c = p.curriculo;
+    if (!c) return t;
+    if (c.sintese) t += `SÍNTESE:\n${c.sintese}\n\n`;
+    if (c.experiencia?.length > 0) {
+      t += 'EXPERIÊNCIAS:\n';
+      c.experiencia.slice(0, 3).forEach((e: any) => { t += `- ${e.cargo} na ${e.empresa}\n`; });
+      t += '\n';
+    }
+    if (c.formacao?.length > 0) {
+      t += 'FORMAÇÃO:\n';
+      c.formacao.slice(0, 2).forEach((f: any) => { t += `- ${f.grauNome} em ${f.curso} (${f.local})\n`; });
+    }
+    return t;
+  };
+
+  const handleImport = async () => {
+    setStep('importing');
+    setErrorMsg('');
+    let count = 0;
+    for (const c of selectedCandidates) {
+      try {
+        const raw: any = {
+          dataNascimento: c.dataNascimento, sexo: c.sexo, estadoCivil: c.estadoCivil,
+          localidade: c.localidade, curriculo: c.curriculo, foto: c.foto, cpf: c.cpf
+        };
+        await candidatesService.create({
+          name: c.nome,
+          email: c.email || `sem-email-${c.id}@importado.empregare`,
+          position: c.vagaTitulo, // ← linked to the Empregare vaga title
+          phone: c.celular || c.telefone || null,
+          observations: buildObs(c),
+          status: 'pool', // Enforcing the required business rule
+          raw_data: raw,
+        } as any);
+        count++;
+      } catch (e) { console.warn('Falha ao importar candidato', c.nome, e); }
+    }
+    setImportedCount(count);
+    setStep('done');
+  };
+
+  const toggleVaga = (id: number) => setVagas(prev => prev.map(v => v.id === id ? { ...v, selected: !v.selected } : v));
+  const toggleCandidate = (id: number | string) => setCandidates(prev => prev.map(c => c.id === id ? { ...c, selected: !c.selected } : c));
+
+  // Group candidates by vaga for display
+  const grouped = selectedCandidates.length > 0
+    ? candidates.reduce<Record<string, EmpregareImportCandidate[]>>((acc, c) => {
+      const key = c.vagaTitulo;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(c);
+      return acc;
+    }, {})
+    : {};
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-md bg-deep-navy/30 flex items-center justify-center z-[80] animate-in fade-in duration-300 p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-3xl max-h-[92vh] rounded-[2.5rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="px-10 py-7 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shadow-inner"><Download size={24} /></div>
+            <div>
+              <h3 className="text-xl font-black text-deep-navy tracking-tight uppercase">Importar da Empregare</h3>
+              <p className="text-[10px] font-bold text-deep-navy/40 uppercase tracking-widest mt-0.5">
+                {step === 'loading_vagas' && 'Carregando vagas...'}
+                {step === 'select_vagas' && `${vagas.length} vagas disponíveis`}
+                {step === 'loading_candidates' && 'Buscando candidatos...'}
+                {step === 'preview' && `${candidates.length} candidatos encontrados`}
+                {step === 'importing' && 'Importando...'}
+                {step === 'done' && 'Concluído'}
+                {step === 'error' && 'Erro de conexão'}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-xl transition-colors text-deep-navy/20 hover:text-deep-navy"><X size={22} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+
+          {/* STEP: Loading vagas / Loading candidates */}
+          {(step === 'loading_vagas' || step === 'loading_candidates') && (
+            <div className="flex flex-col items-center justify-center gap-6 min-h-[320px]">
+              <div style={{ position: 'relative', width: '13.6px', height: '48px' }}>
+                <div className="jimu-primary-loading" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-black text-deep-navy uppercase tracking-widest">
+                  {step === 'loading_vagas' ? 'Buscando vagas na Empregare...' : 'Buscando candidatos por vaga...'}
+                </p>
+                <p className="text-[10px] font-bold text-deep-navy/40 uppercase tracking-widest">Conectando à API corporativa</p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP: Select vagas */}
+          {step === 'select_vagas' && (
+            <div className="p-10 space-y-6">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest">Selecione as vagas para importar candidatos</p>
+                <button
+                  onClick={() => { const all = vagas.every(v => v.selected); setVagas(prev => prev.map(v => ({ ...v, selected: !all }))); }}
+                  className="text-[9px] font-black text-sky-600 uppercase tracking-widest bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-100 hover:bg-sky-100 transition-colors"
+                >
+                  {vagas.every(v => v.selected) ? 'Desmarcar Todas' : 'Selecionar Todas'}
+                </button>
+              </div>
+              <div className="space-y-2">
+                {vagas.map(v => (
+                  <div key={v.id} onClick={() => toggleVaga(v.id)} className={cn('flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all', v.selected ? 'bg-sky-50/60 border-sky-200' : 'bg-slate-50 border-slate-100 opacity-60')}>
+                    <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all', v.selected ? 'bg-sky-600 border-sky-600' : 'border-slate-300')}>
+                      {v.selected && <CheckCircle size={12} className="text-white" />}
+                    </div>
+                    <div className="w-9 h-9 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shrink-0"><Briefcase size={16} /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-sm text-deep-navy leading-none truncate">{v.titulo}</p>
+                      <p className="text-[10px] font-bold text-deep-navy/40 uppercase tracking-widest mt-0.5">ID: {v.id}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP: Preview candidates */}
+          {step === 'preview' && (
+            <div className="p-10 space-y-6">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest">Candidatos ({selectedCandidates.length} selecionados)</p>
+                <button
+                  onClick={() => { const all = candidates.every(c => c.selected); setCandidates(prev => prev.map(c => ({ ...c, selected: !all }))); }}
+                  className="text-[9px] font-black text-sky-600 uppercase tracking-widest bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-100 hover:bg-sky-100 transition-colors"
+                >
+                  {candidates.every(c => c.selected) ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                </button>
+              </div>
+              {/* Grouped by vaga */}
+              {(Object.entries(
+                candidates.reduce<Record<string, EmpregareImportCandidate[]>>((acc, c) => {
+                  if (!acc[c.vagaTitulo]) acc[c.vagaTitulo] = [];
+                  acc[c.vagaTitulo].push(c);
+                  return acc;
+                }, {})
+              ) as [string, EmpregareImportCandidate[]][]).map(([vagaTitulo, grp]) => (
+                <div key={vagaTitulo} className="space-y-2">
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="w-6 h-6 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600"><Briefcase size={12} /></div>
+                    <p className="text-[10px] font-black text-sky-700 uppercase tracking-widest">{vagaTitulo}</p>
+                    <span className="text-[9px] font-black text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">{grp.length} candidatos</span>
+                  </div>
+                  {grp.map(c => (
+                    <div key={String(c.id)} onClick={() => toggleCandidate(c.id)} className={cn('flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ml-8', c.selected ? 'bg-sky-50/60 border-sky-200' : 'bg-slate-50 border-slate-100 opacity-50')}>
+                      <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all', c.selected ? 'bg-sky-600 border-sky-600' : 'border-slate-300')}>
+                        {c.selected && <CheckCircle size={12} className="text-white" />}
+                      </div>
+                      <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-400 text-xs font-black uppercase">
+                        {c.foto ? <img src={c.foto} alt={c.nome} className="w-full h-full object-cover" /> : c.nome.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm text-deep-navy leading-none truncate">{c.nome}</p>
+                        <p className="text-[10px] font-bold text-deep-navy/40 uppercase tracking-widest mt-0.5 truncate">{c.email || 'Sem email'}</p>
+                      </div>
+                      <div className="text-[9px] font-black text-deep-navy/30 uppercase tracking-widest text-right shrink-0">{c.localidade?.cidade || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {errorMsg && <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-rose-700 font-bold">{errorMsg}</div>}
+            </div>
+          )}
+
+          {/* STEP: Importing */}
+          {step === 'importing' && (
+            <div className="flex flex-col items-center justify-center gap-6 min-h-[280px]">
+              <div style={{ position: 'relative', width: '13.6px', height: '48px' }}>
+                <div className="jimu-primary-loading" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-black text-deep-navy uppercase tracking-widest">Importando candidatos...</p>
+                <p className="text-[10px] font-bold text-deep-navy/40 uppercase tracking-widest">Salvando no banco de talentos</p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP: Done */}
+          {step === 'done' && (
+            <div className="p-10 flex flex-col items-center justify-center gap-6 min-h-[280px]">
+              <div className="w-20 h-20 rounded-3xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-inner"><CheckCircle size={40} /></div>
+              <div className="text-center space-y-2">
+                <p className="text-2xl font-black text-deep-navy tracking-tight">{importedCount} candidatos importados!</p>
+                <p className="text-sm font-bold text-deep-navy/40">Adicionados ao Banco de Talentos, vinculados às vagas da Empregare.</p>
+              </div>
+              <button onClick={onImported} className="px-10 py-4 bg-emerald-500 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20">Concluir</button>
+            </div>
+          )}
+
+          {/* STEP: Error */}
+          {step === 'error' && (
+            <div className="p-10 flex flex-col items-center justify-center gap-6 min-h-[300px]">
+              <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500"><X size={28} /></div>
+              <div className="text-center space-y-2 max-w-md">
+                <p className="text-sm font-black text-deep-navy uppercase tracking-widest">Falha na conexão</p>
+                <p className="text-xs font-bold text-rose-600 leading-relaxed">{errorMsg}</p>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer actions */}
+        {(step === 'loading_vagas' || step === 'loading_candidates') && (
+          <div className="px-10 py-6 border-t border-slate-100 flex justify-end shrink-0">
+            <button onClick={onClose} className="px-6 py-3 text-deep-navy/40 font-black uppercase text-[10px] tracking-widest hover:text-deep-navy transition-colors">Cancelar</button>
+          </div>
+        )}
+        {step === 'select_vagas' && (
+          <div className="px-10 py-6 border-t border-slate-100 flex justify-between items-center shrink-0">
+            <button onClick={onClose} className="px-6 py-3 text-deep-navy/40 font-black uppercase text-[10px] tracking-widest hover:text-deep-navy transition-colors">Cancelar</button>
+            <button
+              onClick={fetchCandidatesForVagas}
+              disabled={selectedVagas.length === 0}
+              className="px-10 py-4 bg-sky-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-sky-700 transition-all shadow-xl shadow-sky-600/20 flex items-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <UserSearch size={18} /> Buscar Candidatos ({selectedVagas.length} vaga{selectedVagas.length !== 1 ? 's' : ''})
+            </button>
+          </div>
+        )}
+        {step === 'error' && (
+          <div className="px-10 py-6 border-t border-slate-100 flex justify-between items-center shrink-0">
+            <button onClick={onClose} className="px-6 py-3 text-deep-navy/40 font-black uppercase text-[10px] tracking-widest hover:text-deep-navy transition-colors">Cancelar</button>
+            <button onClick={fetchVagas} className="px-10 py-4 bg-sky-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-sky-700 transition-all shadow-xl shadow-sky-600/20 flex items-center gap-3">
+              <Download size={18} /> Tentar Novamente
+            </button>
+          </div>
+        )}
+        {step === 'preview' && (
+          <div className="px-10 py-6 border-t border-slate-100 flex justify-between items-center shrink-0">
+            <button onClick={() => { setStep('select_vagas'); setCandidates([]); setErrorMsg(''); }} className="px-6 py-3 text-deep-navy/40 font-black uppercase text-[10px] tracking-widest hover:text-deep-navy transition-colors">← Voltar</button>
+            <button
+              onClick={handleImport}
+              disabled={selectedCandidates.length === 0}
+              className="px-10 py-4 bg-emerald-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCircle size={18} /> Importar {selectedCandidates.length} Candidato{selectedCandidates.length !== 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

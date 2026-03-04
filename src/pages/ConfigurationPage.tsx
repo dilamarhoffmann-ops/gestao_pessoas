@@ -19,7 +19,7 @@ type User = {
     allowed: boolean;
     area: string;
     allowed_menus: string | null;
-    requiresPasswordChange: boolean;
+    must_change_password: boolean;
     approver: boolean;
     created_at: string;
 };
@@ -48,7 +48,7 @@ export default function ConfigurationPage() {
         role: 'Usuario',
         allowed: 'true',
         area: '',
-        password: '123',
+        password: '123456',
         allowed_menus: 'inicio',
         approver: 'false'
     });
@@ -113,6 +113,7 @@ export default function ConfigurationPage() {
                     area: newUser.area,
                     allowed: newUser.allowed === 'true',
                     role: newUser.role,
+                    must_change_password: true,
                     approver: newUser.approver === 'true',
                     allowed_menus: newUser.allowed_menus
                 }).eq('id', data.user.id);
@@ -148,18 +149,21 @@ export default function ConfigurationPage() {
         e.preventDefault();
         if (resettingUser) {
             try {
-                // Note: Supabase admin password reset requires service_role key
-                // For now, just update the profile flag
+                // We set the flag in the profile. 
+                // Since we can't change Supabase Auth password without a backend service role key,
+                // we assume the user either knows their password or the admin has another way,
+                // BUT we force our custom requirement.
                 await usersService.update(resettingUser.id as any, {
-                    requiresPasswordChange: true
-                } as any);
+                    must_change_password: true
+                });
+
                 setShowResetModal(false);
                 setResettingUser(null);
-                setNewResetPassword('123456');
                 fetchUsers();
-                alert(`Senha de ${resettingUser.name} será redefinida no próximo login.`);
+                alert(`Troca de senha OBRIGATÓRIA ativada para ${resettingUser.name}. O acesso será bloqueado até que ele defina uma nova credencial.`);
             } catch (e) {
                 console.error(e);
+                alert('Erro ao processar reset de permissões.');
             }
         }
     };
@@ -284,7 +288,7 @@ export default function ConfigurationPage() {
                                                 {user.allowed ? 'Acesso Liberado' : 'Acesso Bloqueado'}
                                             </button>
 
-                                            {user.requiresPasswordChange && (
+                                            {user.must_change_password && (
                                                 <div className="flex items-center gap-1.5 text-amber-500 animate-pulse mt-1">
                                                     <RotateCcw size={12} />
                                                     <span className="text-[9px] font-black uppercase tracking-tighter">Troca Obrigatória</span>
@@ -505,15 +509,16 @@ export default function ConfigurationPage() {
                             <div className="w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-amber-100/50">
                                 <RotateCcw size={28} strokeWidth={2.5} />
                             </div>
-                            <h3 className="text-xl font-bold text-[#1e293b]">Redefinir Acesso</h3>
-                            <p className="text-sm text-[#64748b] mt-2 font-medium px-2">Nova credencial para {resettingUser?.name}</p>
-                            <form onSubmit={handleResetSubmit} className="mt-6 space-y-4 text-left">
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-2">Nova Senha</label>
-                                    <input required type="text" value={newResetPassword} onChange={e => setNewResetPassword(e.target.value)} className="w-full px-6 py-3.5 bg-[#f8fafc] border-none rounded-xl font-bold text-[#1e293b] text-center text-lg tracking-tight focus:ring-2 focus:ring-amber-500/20 transition-all" />
-                                </div>
+                            <h3 className="text-xl font-bold text-[#1e293b]">Exigir Troca de Senha</h3>
+                            <p className="text-sm text-[#64748b] mt-2 font-medium px-2">
+                                Ao confirmar, <strong>{resettingUser?.name}</strong> será obrigado a definir uma nova senha no próximo acesso.
+                            </p>
+                            <form onSubmit={handleResetSubmit} className="mt-6 space-y-4">
                                 <button type="submit" className="w-full py-3.5 bg-amber-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm">
-                                    Confirmar Reset
+                                    Ativar Exigência
+                                </button>
+                                <button type="button" onClick={() => setShowResetModal(false)} className="w-full py-2 text-xs text-gray-400 font-bold uppercase tracking-widest hover:text-gray-600 transition-colors">
+                                    Voltar
                                 </button>
                             </form>
                         </motion.div>

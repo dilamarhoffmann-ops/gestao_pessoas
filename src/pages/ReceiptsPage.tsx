@@ -312,12 +312,27 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
         try {
             await companiesService.create(newCompany);
             setNewCompany({ name: '', cnpj: '' });
+
+            // Refresh list
             const updated = await companiesService.getAll();
             setCompanies(updated as Company[]);
-        } catch (e: any) {
-            console.error('Error adding company', e);
-            setNotification({ message: e?.message || 'Erro ao cadastrar empresa.', type: 'error', isOpen: true });
-            setTimeout(() => setNotification(prev => ({ ...prev, isOpen: false })), 3000);
+
+            // Feedback
+            setNotification({
+                message: 'Empresa cadastrada com sucesso!',
+                type: 'success',
+                isOpen: true
+            });
+            setTimeout(() => setNotification(prev => ({ ...prev, isOpen: false })), 4000);
+        } catch (err: any) {
+            console.error('Error adding company', err);
+            const msg = err.message || 'Erro ao cadastrar empresa. Verifique se o CNPJ já existe ou se há permissão.';
+            setNotification({
+                message: msg,
+                type: 'error',
+                isOpen: true
+            });
+            setTimeout(() => setNotification(prev => ({ ...prev, isOpen: false })), 5000);
         }
     };
 

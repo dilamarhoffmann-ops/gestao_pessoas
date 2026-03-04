@@ -29,10 +29,14 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth Event:', event);
 
-      if (event === 'SIGNED_IN' && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') && session?.user) {
         const profile = await authService.getCurrentProfile();
         if (profile) {
-          handleLogin(profile);
+          // If it's a recovery event, force the must_change_password flag even if not in DB yet
+          const finalProfile = event === 'PASSWORD_RECOVERY'
+            ? { ...profile, must_change_password: true }
+            : profile;
+          handleLogin(finalProfile);
         }
       }
 
@@ -57,8 +61,10 @@ export default function App() {
 
   if (loading) return <LoadingSpinner />;
 
-  if (!user && !isPublicRoute) {
-    return <LoginView onLogin={handleLogin} />;
+  const mustChange = user?.must_change_password;
+
+  if ((!user || mustChange) && !isPublicRoute) {
+    return <LoginView onLogin={handleLogin} currentUser={user} />;
   }
 
   return (

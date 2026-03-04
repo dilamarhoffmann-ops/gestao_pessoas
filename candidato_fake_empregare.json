@@ -1,161 +1,135 @@
 {
     "sucesso": true,
-    "pessoa": {
-        "id": 9988776,
-        "nome": "Ana Clara Oliveira e Silva",
-        "dataNascimento": "1992-08-15T00:00:00",
-        "sexo": "F",
-        "localidade": {
-            "cidade": "São Paulo",
-            "estado": "SP",
-            "pais": "BR",
-            "logradouro": "Avenida Paulista, 1000",
-            "bairro": "Bela Vista",
-            "cep": "01310100"
+    "pessoas": [
+        {
+            "idPessoa": 1001,
+            "nome": "Ana Clara Oliveira",
+            "email": "ana.clara@example.com",
+            "celular": "(11) 98765-4321",
+            "localidade": {
+                "cidade": "São Paulo",
+                "estado": "SP"
+            },
+            "curriculo": {
+                "sintese": "Desenvolvedora Frontend Senior."
+            }
         },
-        "email": "ana.clara.dev@example.com",
-        "situacao": "Ativo",
-        "estaNoArquivo": false,
-        "foto": "https://storage.empregare.com/pessoas/sem-foto.png",
-        "telefone": "(11) 3222-1234",
-        "telefonePaisCode": "+55",
-        "celular": "(11) 98765-4321",
-        "celularPaisCode": "+55",
-        "estadoCivil": "Solteira",
-        "dataCadastro": "2025-10-10T09:30:00.00",
-        "dataAtualizacao": "2026-02-20T11:15:30.00",
-        "dataAtualizacaoContato": "2026-02-20T11:15:30.00",
-        "filhos": "Nenhum",
-        "privacidade": "Publico",
-        "exclusivo": false,
-        "timeZone": "America/Sao_Paulo",
-        "colaborador": null,
-        "aluno": null,
-        "vinculoExterno": {
-            "idExterno": null,
-            "empresaID": 0
+        {
+            "idPessoa": 1002,
+            "nome": "Bruno Henrique Santos",
+            "email": "bruno.henrique@example.com",
+            "celular": "(11) 91234-5678",
+            "localidade": {
+                "cidade": "Rio de Janeiro",
+                "estado": "RJ"
+            },
+            "curriculo": {
+                "sintese": "Especialista em Backend Node.js."
+            }
         },
-        "candidaturasAndamento": 2,
-        "candidatura": null,
-        "marcadores": [],
-        "curriculo": {
-            "redeSocial": [
-                {
-                    "url": "linkedin.com/in/anaclara-fake",
-                    "id": "LinkedIn"
-                },
-                {
-                    "url": "github.com/anaclara-fake",
-                    "id": "GitHub"
-                }
-            ],
-            "arquivoCurriculo": null,
-            "progresso": 90,
-            "sintese": "Desenvolvedora Frontend apaixonada por criar interfaces intuitivas e escaláveis. Especialista em React, TypeScript e Tailwind CSS, com forte foco na experiência do usuário e performance da aplicação.",
-            "pretensaoSalarial": "APartir8000",
-            "deficiencia": [],
-            "areas": [
-                {
-                    "id": 23,
-                    "nome": "Informática, TI, Telecomunicações"
-                },
-                {
-                    "id": 12,
-                    "nome": "Design, UI/UX"
-                }
-            ],
-            "formacao": [
-                {
-                    "grauID": 11,
-                    "local": "Universidade de São Paulo (USP)",
-                    "curso": "Sistemas de Informação",
-                    "dataInicio": "2012-02-01T00:00:00",
-                    "dataFim": "2016-12-01T00:00:00",
-                    "incompleto": false,
-                    "grauNome": "Bacharelado"
-                },
-                {
-                    "grauID": 13,
-                    "local": "FIAP",
-                    "curso": "Arquitetura de Software",
-                    "dataInicio": "2018-03-01T00:00:00",
-                    "dataFim": "2019-12-01T00:00:00",
-                    "incompleto": false,
-                    "grauNome": "Pós-Graduação"
-                }
-            ],
-            "experiencia": [
-                {
-                    "cidade": "São Paulo",
-                    "cargo": "Desenvolvedora Frontend Sênior",
-                    "atual": true,
-                    "dataInicio": "2021-05-01T00:00:00",
-                    "dataFim": "0001-01-01T00:00:00",
-                    "descricao": "Liderança técnica na modernização da arquitetura frontend, migrando projetos de React antigo para Next.js App Router com Tailwind. Criação de um Design System corporativo utilizado por mais de 5 equipes. Mentoria de desenvolvedores juniores.",
-                    "resultado": "Redução de 40% no tamanho do bundle e melhoria significativa na acessibilidade das aplicações.",
-                    "empresa": "TechCorp Inovações",
-                    "voluntario": false
-                },
-                {
-                    "cidade": "Campinas",
-                    "cargo": "Desenvolvedora React Pleno",
-                    "atual": false,
-                    "dataInicio": "2018-01-01T00:00:00",
-                    "dataFim": "2021-04-01T00:00:00",
-                    "descricao": "Desenvolvimento de dashboards financeiros e painéis administrativos utilizando React, Redux e Material UI. Integração diária com APIs RESTful e participação ativa em rituais ágeis (Scrum).",
-                    "resultado": "Entrega de 3 novos módulos de faturamento antes do prazo estipulado.",
-                    "empresa": "FinSys Soluções",
-                    "voluntario": false
-                },
-                {
-                    "cidade": "São Paulo",
-                    "cargo": "Desenvolvedora Web Júnior",
-                    "atual": false,
-                    "dataInicio": "2016-08-01T00:00:00",
-                    "dataFim": "2017-12-01T00:00:00",
-                    "descricao": "Manutenção de sites institucionais usando HTML5, CSS3, e Vanilla JavaScript. Criação de landing pages responsivas e campanhas de e-mail marketing.",
-                    "resultado": null,
-                    "empresa": "Agência Criativa Digital",
-                    "voluntario": false
-                }
-            ],
-            "curso": [
-                {
-                    "curso": "Masterclass de Acessibilidade Web (WCAG)",
-                    "local": "Alura",
-                    "anoConclusao": 2023,
-                    "horas": 40
-                }
-            ],
-            "informatica": [
-                {
-                    "nome": "React.js",
-                    "nivel": "Avançado"
-                },
-                {
-                    "nome": "TypeScript",
-                    "nivel": "Avançado"
-                },
-                {
-                    "nome": "Figma",
-                    "nivel": "Intermediário"
-                }
-            ],
-            "idioma": [
-                {
-                    "idioma": "Inglês",
-                    "nivelLeitura": "Fluente",
-                    "nivelEscrita": "Avançado",
-                    "nivelConversacao": "Avançado"
-                },
-                {
-                    "idioma": "Espanhol",
-                    "nivelLeitura": "Intermediário",
-                    "nivelEscrita": "Básico",
-                    "nivelConversacao": "Básico"
-                }
-            ],
-            "adicional": []
+        {
+            "idPessoa": 1003,
+            "nome": "Carla Beatriz Lima",
+            "email": "carla.beatriz@example.com",
+            "celular": "(21) 99876-5432",
+            "localidade": {
+                "cidade": "Curitiba",
+                "estado": "PR"
+            },
+            "curriculo": {
+                "sintese": "Designer UI/UX focada em acessibilidade."
+            }
+        },
+        {
+            "idPessoa": 1004,
+            "nome": "Diego Souza Ferreira",
+            "email": "diego.souza@example.com",
+            "celular": "(31) 98888-7777",
+            "localidade": {
+                "cidade": "Belo Horizonte",
+                "estado": "MG"
+            },
+            "curriculo": {
+                "sintese": "Product Manager com 5 anos de experiência."
+            }
+        },
+        {
+            "idPessoa": 1005,
+            "nome": "Elena Maria Rocha",
+            "email": "elena.rocha@example.com",
+            "celular": "(41) 97777-6666",
+            "localidade": {
+                "cidade": "Porto Alegre",
+                "estado": "RS"
+            },
+            "curriculo": {
+                "sintese": "Analista de QA e automação de testes."
+            }
+        },
+        {
+            "idPessoa": 1006,
+            "nome": "Fabio Junior Costa",
+            "email": "fabio.costa@example.com",
+            "celular": "(51) 96666-5555",
+            "localidade": {
+                "cidade": "Florianópolis",
+                "estado": "SC"
+            },
+            "curriculo": {
+                "sintese": "Desenvolvedor Mobile React Native."
+            }
+        },
+        {
+            "idPessoa": 1007,
+            "nome": "Giulia Paiva",
+            "email": "giulia.paiva@example.com",
+            "celular": "(61) 95555-4444",
+            "localidade": {
+                "cidade": "Brasília",
+                "estado": "DF"
+            },
+            "curriculo": {
+                "sintese": "Cientista de Dados e Especialista ML."
+            }
+        },
+        {
+            "idPessoa": 1008,
+            "nome": "Hugo Leonardo Silva",
+            "email": "hugo.silva@example.com",
+            "celular": "(71) 94444-3333",
+            "localidade": {
+                "cidade": "Salvador",
+                "estado": "BA"
+            },
+            "curriculo": {
+                "sintese": "Arquiteto de infraestrutura Cloud AWS."
+            }
+        },
+        {
+            "idPessoa": 1009,
+            "nome": "Isabela Neves",
+            "email": "isabela.neves@example.com",
+            "celular": "(81) 93333-2222",
+            "localidade": {
+                "cidade": "Recife",
+                "estado": "PE"
+            },
+            "curriculo": {
+                "sintese": "Especialista em Segurança da Informação."
+            }
+        },
+        {
+            "idPessoa": 1010,
+            "nome": "João Pedro Moraes",
+            "email": "joao.moraes@example.com",
+            "celular": "(91) 92222-1111",
+            "localidade": {
+                "cidade": "Manaus",
+                "estado": "AM"
+            },
+            "curriculo": {
+                "sintese": "Desenvolvedor Backend Golang."
+            }
         }
-    }
+    ]
 }

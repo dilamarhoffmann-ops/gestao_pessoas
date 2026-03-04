@@ -120,7 +120,7 @@ db.exec(`
     allowed BOOLEAN DEFAULT 0,
     area TEXT,
     allowed_menus TEXT,
-    requiresPasswordChange BOOLEAN DEFAULT 0,
+    must_change_password BOOLEAN DEFAULT 0,
     approver BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );

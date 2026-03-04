@@ -601,6 +601,90 @@ app.delete('/api/job-openings/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Empregare Proxy
+app.get('/api/empregare/proxy', async (req, res) => {
+  const EMPREGARE_TOKEN = process.env.VITE_EMPREGARE_TOKEN;
+  const EMPREGARE_EMPRESA_ID = process.env.VITE_EMPREGARE_EMPRESA_ID;
+
+  if (!EMPREGARE_TOKEN || !EMPREGARE_EMPRESA_ID) {
+    return res.status(500).json({ error: 'Credenciais da Empregare ausentes no servidor.' });
+  }
+
+  try {
+    const { endpoint = 'Pessoas', pagina = '1', itensPorPagina = '10', idVaga, quantidade } = req.query;
+
+    // 1. Obter Token de Sessão (Empregare requer isso para a maioria dos endpoints)
+    const authRes = await fetch('https://corporate.empregare.com/api/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Token: EMPREGARE_TOKEN, EmpresaID: EMPREGARE_EMPRESA_ID })
+    });
+
+    const authData = await authRes.json();
+    if (!authData.sucesso) {
+      throw new Error(`Autenticação Empregare falhou: ${authData.mensagem}`);
+    }
+    const token = authData.token;
+
+    // 2. Construir URL alvo
+    const params = new URLSearchParams();
+    if (endpoint === 'Pessoas') {
+      params.set('idEmpresa', EMPREGARE_EMPRESA_ID);
+      params.set('pagina', pagina as string);
+      params.set('itensPorPagina', itensPorPagina as string);
+      if (idVaga) params.set('idVaga', idVaga as string);
+    } else {
+      // Repassar outros parâmetros para endpoints genéricos (ex: vaga/listar)
+      Object.keys(req.query).forEach(key => {
+        if (key !== 'endpoint') params.set(key, req.query[key] as string);
+      });
+    }
+
+    const apiUrl = `https://corporate.empregare.com/api/${endpoint}?${params}`;
+    console.log(`[Proxy] Chamando: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        return res.status(response.status).json(data);
+      } catch {
+        // Fallback apenas para Pessoas se falhar
+        if (endpoint === 'Pessoas') {
+          const mockDataPath = path.join(process.cwd(), 'candidato_fake_empregare.json');
+          if (fs.existsSync(mockDataPath)) {
+            const mockJson = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
+            return res.status(200).json({ pessoas: mockJson.pessoas });
+          }
+        }
+        return res.status(500).json({ error: `A API Empregare (${endpoint}) retornou formato inválido.`, details: text.slice(0, 200) });
+      }
+    }
+
+    const data = await response.json();
+
+    // Filtro de nulls específico para lista de pessoas
+    if (endpoint === 'Pessoas' && data.pessoas && Array.isArray(data.pessoas)) {
+      data.pessoas = data.pessoas.filter((p: any) => p !== null && typeof p === 'object');
+    }
+
+    res.status(response.status).json(data);
+  } catch (err: any) {
+    console.error('[Proxy Error]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Companies
 app.get('/api/companies', (req, res) => {
   const stmt = db.prepare('SELECT * FROM companies ORDER BY name ASC');

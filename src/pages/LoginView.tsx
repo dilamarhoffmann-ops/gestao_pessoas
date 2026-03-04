@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Shield, Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle, Building } from 'lucide-react';
 import { authService } from '../lib/supabase-service';
 
 interface LoginViewProps {
     onLogin: (user: any) => void;
+    currentUser?: any;
 }
 
-export default function LoginView({ onLogin }: LoginViewProps) {
+export default function LoginView({ onLogin, currentUser }: LoginViewProps) {
     const [isRegistering, setIsRegistering] = useState(false);
-    const [isChangingPassword, setIsChangingPassword] = useState(false);
-    const [tempUser, setTempUser] = useState<any>(null);
+    const [isChangingPassword, setIsChangingPassword] = useState(currentUser?.must_change_password || false);
+    const [tempUser, setTempUser] = useState<any>(currentUser || null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -21,6 +22,14 @@ export default function LoginView({ onLogin }: LoginViewProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    // Sycn state if currentUser changes from App
+    useEffect(() => {
+        if (currentUser?.must_change_password) {
+            setIsChangingPassword(true);
+            setTempUser(currentUser);
+        }
+    }, [currentUser]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,7 +67,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
         try {
             await authService.changePassword(newPassword);
-            onLogin({ ...tempUser, requiresPasswordChange: false });
+            onLogin({ ...tempUser, must_change_password: false });
         } catch (err: any) {
             setError(err.message || 'Erro ao alterar senha.');
         } finally {
