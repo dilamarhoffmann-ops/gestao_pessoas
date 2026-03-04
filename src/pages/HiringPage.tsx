@@ -8,7 +8,7 @@ import { candidatesService, jobOpeningsService } from '../lib/supabase-service';
 import { supabase } from '../lib/supabase';
 
 type Candidate = {
-  id: number;
+  id: string;
   name: string;
   position: string;
   email: string;
@@ -110,7 +110,7 @@ export default function HiringPage() {
     setIsModalOpen(true);
   };
 
-  const handleMatch = async (id: number) => {
+  const handleMatch = async (id: string) => {
     try {
       setCandidates(prev => prev.map(c => c.id === id ? { ...c, match_score: -1 } : c)); // -1 representing loading
       const data = await candidatesService.matchCandidate(id);
@@ -125,7 +125,7 @@ export default function HiringPage() {
     }
   };
 
-  const moveCandidate = async (id: number, currentStatus: string) => {
+  const moveCandidate = async (id: string, currentStatus: string) => {
     const statusOrder = ['applied', 'interview1', 'interview2', 'offer', 'hired'];
     const currentIndex = statusOrder.indexOf(currentStatus);
     if (currentIndex === -1 || currentIndex === statusOrder.length - 1) return;
@@ -154,7 +154,7 @@ export default function HiringPage() {
   };
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'candidate' | 'job'; name: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'candidate' | 'job'; name: string } | null>(null);
 
   const handleDeleteCandidate = async () => {
     if (!candidateToEdit?.id) return;
@@ -176,7 +176,7 @@ export default function HiringPage() {
     setItemToDelete(null);
   };
 
-  const handleRestart = async (id: number, status: 'pool' | 'applied' = 'applied') => {
+  const handleRestart = async (id: string, status: 'pool' | 'applied' = 'applied') => {
     await candidatesService.updateStatus(id, { status });
     fetchCandidates();
   };
@@ -1632,7 +1632,7 @@ function NewCandidateModal({ isOpen, onClose, onCreated, candidateToEdit, handle
 }
 
 
-function CandidatesManagementModal({ isOpen, onClose, candidates, onEdit, onNew, onInitiate }: { isOpen: boolean; onClose: () => void; candidates: Candidate[]; onEdit: (c: Candidate) => void; onNew: () => void; onInitiate: (id: number) => void }) {
+function CandidatesManagementModal({ isOpen, onClose, candidates, onEdit, onNew, onInitiate }: { isOpen: boolean; onClose: () => void; candidates: Candidate[]; onEdit: (c: Candidate) => void; onNew: () => void; onInitiate: (id: string) => void }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = candidates.filter(c =>
@@ -1871,8 +1871,8 @@ function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: bo
     setIsCreating(true);
   };
 
-  const handleDeleteJobInternal = async (id: number, name: string) => {
-    onDelete(id, name);
+  const handleDeleteJobInternal = async (id: string | number, name: string) => {
+    onDelete(id as number, name); // Cast back to number for the onDelete prop if it expects number
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { discountsService } from '../lib/supabase-service';
 
 type Discount = {
-  id: number;
+  id: string | number;
   employee_name: string;
   type: 'Adiantamento' | 'Gratificação';
   original_value: number;
@@ -38,7 +38,7 @@ export default function DiscountsPage() {
     }
   };
 
-  const handleStatusUpdate = async (id: number, nextStatus: string) => {
+  const handleStatusUpdate = async (id: string | number, nextStatus: string) => {
     await discountsService.updateStatus(id, nextStatus);
     fetchDiscounts();
   };
@@ -222,7 +222,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ActionButtons({ discount, onUpdate }: { discount: Discount; onUpdate: (id: number, status: string) => void }) {
+function ActionButtons({ discount, onUpdate }: { discount: Discount; onUpdate: (id: string | number, status: string) => void }) {
   if (discount.status === 'completed') return <span className="text-emerald-600 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100"><Check size={14} /> Finalizado</span>;
 
   // Step 2: Manager receives, generates, downloads, uploads, and transfers

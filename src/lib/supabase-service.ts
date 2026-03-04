@@ -45,14 +45,35 @@ export const authService = {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw new Error(error.message);
 
-        // Fetch profile
-        const { data: profile, error: profileErr } = await supabase
+        // Fetch or Create profile
+        let { data: profile, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
 
-        if (profileErr) throw new Error('Perfil não encontrado.');
+        // If profile is missing but user is authenticated, try to auto-create it (Synchronize)
+        if (profileErr || !profile) {
+            console.warn('Profile missing for authenticated user, attempting self-registration...');
+            const { data: newProfile, error: createErr } = await supabase
+                .from('profiles')
+                .insert([{
+                    id: data.user.id,
+                    name: data.user.user_metadata?.name || email.split('@')[0],
+                    email: email,
+                    role: 'Usuario',
+                    allowed: true // Auto-allow during self-fix for legacy users
+                }])
+                .select()
+                .single();
+
+            if (createErr) {
+                console.error('Failed to auto-create profile:', createErr);
+                throw new Error('Perfil não encontrado e falha na sincronização automática.');
+            }
+            profile = newProfile;
+        }
+
         if (!profile.allowed) throw new Error('Acesso ainda não liberado. Aguarde aprovação de um gestor.');
 
         return { user: { ...profile, email: data.user.email } };
@@ -109,14 +130,30 @@ export const authService = {
     },
 
     async getCurrentProfile() {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return null;
+        const { data: { user }, error: userErr } = await supabase.auth.getUser();
+        if (userErr || !user) return null;
 
-        const { data: profile } = await supabase
+        let { data: profile, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
+
+        // Self-fix profile if missing while session is active
+        if ((profileErr || !profile) && user) {
+            const { data: newProfile } = await supabase
+                .from('profiles')
+                .insert([{
+                    id: user.id,
+                    name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                    email: user.email || '',
+                    role: 'Usuario',
+                    allowed: true
+                }])
+                .select()
+                .single();
+            profile = newProfile;
+        }
 
         return profile ? { ...profile, email: user.email } : null;
     }
@@ -146,7 +183,7 @@ export const discountsService = {
         return data;
     },
 
-    async updateStatus(id: number, status: string) {
+    async updateStatus(id: string | number, status: string) {
         const { error } = await supabase
             .from('discounts')
             .update({ status })
@@ -180,7 +217,7 @@ export const lawsuitsService = {
         return data;
     },
 
-    async update(id: number, lawsuit: any) {
+    async update(id: string | number, lawsuit: any) {
         const { error } = await supabase
             .from('lawsuits')
             .update(lawsuit)
@@ -189,7 +226,7 @@ export const lawsuitsService = {
         return { success: true };
     },
 
-    async delete(id: number) {
+    async delete(id: string | number) {
         const { error } = await supabase
             .from('lawsuits')
             .delete()
@@ -198,7 +235,7 @@ export const lawsuitsService = {
         return { success: true };
     },
 
-    async getDocuments(lawsuitId: number) {
+    async getDocuments(lawsuitId: string | number) {
         const { data, error } = await supabase
             .from('lawsuit_documents')
             .select('*')
@@ -208,7 +245,7 @@ export const lawsuitsService = {
         return data;
     },
 
-    async addDocument(lawsuitId: number, file: File, uploadType: string) {
+    async addDocument(lawsuitId: string | number, file: File, uploadType: string) {
         const publicUrl = await uploadToS3(file, `lawsuit-docs/${lawsuitId}`);
 
         const { data, error } = await supabase
@@ -226,7 +263,7 @@ export const lawsuitsService = {
         return data;
     },
 
-    async deleteDocument(docId: number) {
+    async deleteDocument(docId: string | number) {
         const { error } = await supabase
             .from('lawsuit_documents')
             .delete()
@@ -267,7 +304,7 @@ export const candidatesService = {
         return data;
     },
 
-    async update(id: number, candidate: any, resumeFile?: File) {
+    async update(id: string | number, candidate: any, resumeFile?: File) {
         let updateData = { ...candidate };
 
         if (resumeFile) {
@@ -287,7 +324,7 @@ export const candidatesService = {
         return { success: true, resume_url: updateData.resume_url };
     },
 
-    async updateStatus(id: number, statusData: any) {
+    async updateStatus(id: string | number, statusData: any) {
         const updateObj: any = { status: statusData.status };
 
         if (statusData.status === 'archived' || statusData.status === 'applied') {
@@ -308,7 +345,7 @@ export const candidatesService = {
         return { success: true };
     },
 
-    async delete(id: number) {
+    async delete(id: string | number) {
         const { error } = await supabase
             .from('candidates')
             .delete()
@@ -317,7 +354,7 @@ export const candidatesService = {
         return { success: true };
     },
 
-    async updateDisc(id: number, profile: string) {
+    async updateDisc(id: string | number, profile: string) {
         const { error } = await supabase
             .from('candidates')
             .update({ disc_profile: profile })
@@ -326,7 +363,7 @@ export const candidatesService = {
         return { success: true };
     },
 
-    async matchCandidate(id: number) {
+    async matchCandidate(id: string | number) {
         const res = await fetch('/api/match-candidate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -398,11 +435,10 @@ export const companiesService = {
     async create(company: { name: string; cnpj: string }) {
         const { data, error } = await supabase
             .from('companies')
-            .insert(company)
-            .select()
-            .single();
+            .insert([company])
+            .select();
         if (error) throw error;
-        return data;
+        return data ? data[0] : null;
     },
 
     async delete(id: number) {

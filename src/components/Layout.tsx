@@ -33,7 +33,7 @@ export default function Layout({ children, user, onLogout }: { children: React.R
           !isExpanded && "justify-center"
         )}>
           <div className="w-10 h-10 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-center font-black text-xl text-primary transition-all group-hover:bg-primary group-hover:text-white group-hover:scale-105 group-hover:rotate-3 shadow-lg shrink-0">
-            GN
+            GG
           </div>
           {isExpanded && (
             <motion.span
@@ -41,7 +41,7 @@ export default function Layout({ children, user, onLogout }: { children: React.R
               animate={{ opacity: 1, x: 0 }}
               className="text-white font-black tracking-tight"
             >
-              GESTOR <span className="text-primary">GN</span>
+              Gente & <span className="text-primary">Gestão</span>
             </motion.span>
           )}
 
@@ -118,7 +118,7 @@ export default function Layout({ children, user, onLogout }: { children: React.R
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Gestor GN Header */}
+        {/* Gente & Gestão Header */}
 
 
         {/* Content with Reveal Animation */}

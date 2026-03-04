@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { lawsuitsService } from '../lib/supabase-service';
 
 type Lawsuit = {
-  id: number;
+  id: string | number;
   case_number: string;
   claimant_name: string;
   respondent_name: string;
@@ -55,7 +55,7 @@ export default function LawsuitsPage() {
   const [lawsuits, setLawsuits] = useState<Lawsuit[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLawsuit, setSelectedLawsuit] = useState<Lawsuit | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string | number; name: string } | null>(null);
   const [deadlineFilter, setDeadlineFilter] = useState<'all' | '7d' | '30d' | 'overdue' | 'none'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,7 +73,7 @@ export default function LawsuitsPage() {
     }
   };
 
-  const handleDeleteRequest = (id: number, name: string) => {
+  const handleDeleteRequest = (id: string | number, name: string) => {
     setDeleteTarget({ id, name });
   };
 

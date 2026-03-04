@@ -21,42 +21,63 @@ export default function App() {
   const isPublicRoute = window.location.pathname.startsWith('/disc-assessment');
 
   useEffect(() => {
-    // 1. Check local storage first for speed
-    const saved = localStorage.getItem('gestor_gn_user');
-    if (saved) setUser(JSON.parse(saved));
-
-    // 2. Listen for Supabase Auth changes (including Recovery)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth Event:', event);
-
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') && session?.user) {
+    const initAuth = async () => {
+      console.log("Initializing Auth...");
+      try {
         const profile = await authService.getCurrentProfile();
         if (profile) {
-          // If it's a recovery event, force the must_change_password flag even if not in DB yet
-          const finalProfile = event === 'PASSWORD_RECOVERY'
-            ? { ...profile, must_change_password: true }
-            : profile;
-          handleLogin(finalProfile);
+          console.log("Found existing session profile:", profile.email);
+          handleLogin(profile);
+        } else {
+          console.log("No active session found on init.");
+        }
+      } catch (err) {
+        console.error("Critical error during auth init:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('--- Auth Event ---', event);
+
+      if (session?.user) {
+        console.log('User detected in session:', session.user.email);
+        try {
+          const profile = await authService.getCurrentProfile();
+          if (profile) {
+            const isRecovery = event === 'PASSWORD_RECOVERY';
+            const finalProfile = isRecovery ? { ...profile, must_change_password: true } : profile;
+
+            console.log('Applying profile to state:', finalProfile.email, 'Must change:', !!finalProfile.must_change_password);
+            handleLogin(finalProfile);
+          } else {
+            console.warn('Profile not found for session in onAuthStateChange');
+          }
+        } catch (err) {
+          console.error('Error fetching profile in state change:', err);
         }
       }
 
       if (event === 'SIGNED_OUT') {
+        console.log('Signed out event detected');
         handleLogout();
       }
     });
 
-    setLoading(false);
     return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = (userData: any) => {
     setUser(userData);
-    localStorage.setItem('gestor_gn_user', JSON.stringify(userData));
+    localStorage.setItem('gente_gestao_user', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('gestor_gn_user');
+    localStorage.removeItem('gente_gestao_user');
   };
 
   if (loading) return <LoadingSpinner />;

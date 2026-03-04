@@ -310,7 +310,7 @@ export default function LoginView({ onLogin, currentUser }: LoginViewProps) {
                             <Shield size={28} />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-                            GESTOR <span className="text-blue-500">GN</span>
+                            Gente & <span className="text-blue-500">Gestão</span>
                         </h2>
                         <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mt-1">
                             {isChangingPassword ? 'Criar nova senha' : isRegistering ? 'Solicitar acesso' : 'Acesso ao sistema'}

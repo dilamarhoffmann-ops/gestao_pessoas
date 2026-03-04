@@ -12,7 +12,7 @@ import { usersService, authService } from '../lib/supabase-service';
 import { supabase } from '../lib/supabase';
 
 type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     role: string;
@@ -64,7 +64,7 @@ export default function ConfigurationPage() {
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem('user');
+        const stored = localStorage.getItem('gente_gestao_user');
         if (stored) setActiveUser(JSON.parse(stored));
         fetchUsers();
     }, []);
@@ -81,7 +81,7 @@ export default function ConfigurationPage() {
         }
     };
 
-    const handleUpdateUser = async (id: number, updates: Partial<User>) => {
+    const handleUpdateUser = async (id: string, updates: Partial<User>) => {
         try {
             await usersService.update(id as any, updates);
             fetchUsers();
@@ -161,9 +161,9 @@ export default function ConfigurationPage() {
                 setResettingUser(null);
                 fetchUsers();
                 alert(`Troca de senha OBRIGATÓRIA ativada para ${resettingUser.name}. O acesso será bloqueado até que ele defina uma nova credencial.`);
-            } catch (e) {
-                console.error(e);
-                alert('Erro ao processar reset de permissões.');
+            } catch (err: any) {
+                console.error(err);
+                alert('Erro ao processar reset de permissões: ' + (err.message || 'Desconhecido'));
             }
         }
     };

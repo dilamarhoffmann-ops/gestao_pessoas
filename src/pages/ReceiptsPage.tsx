@@ -35,7 +35,7 @@ type ReceiptType = {
 };
 
 type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     approver: boolean;
@@ -1458,7 +1458,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
 
                                             {/* Security Watermark */}
                                             <div className="text-center pt-10 no-print">
-                                                <p className="text-[8px] font-black text-slate-200 uppercase tracking-[0.5em]">DOCUMENTO GERADO PELO SISTEMA DEPARTAMENTO PESSOAL - GESTOR GN</p>
+                                                <p className="text-[8px] font-black text-slate-200 uppercase tracking-[0.5em]">DOCUMENTO GERADO PELO SISTEMA DEPARTAMENTO PESSOAL - GENTE & GESTÃO</p>
                                             </div>
                                         </div>
                                     </div>
