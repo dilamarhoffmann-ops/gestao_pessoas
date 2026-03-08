@@ -24,7 +24,16 @@ export default function App() {
     const initAuth = async () => {
       console.log("Initializing Auth...");
       try {
-        const profile = await authService.getCurrentProfile();
+        // Fallback timeout para garantir que não fique em carregamento infinito 
+        // caso o Supabase ou o localStorage estejam corrompidos
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Supabase auth timeout")), 5000)
+        );
+        const profile = await Promise.race([
+          authService.getCurrentProfile(),
+          timeoutPromise
+        ]);
+
         if (profile) {
           console.log("Found existing session profile:", profile.email);
           handleLogin(profile);
@@ -33,6 +42,10 @@ export default function App() {
         }
       } catch (err) {
         console.error("Critical error during auth init:", err);
+        // Em caso de erro corrompido, limpamos a sessão para evitar loop no recarregamento
+        handleLogout();
+        // Além disso, também limpe os dados locais do Supabase para destravar se necessário
+        localStorage.removeItem('supabase.auth.token');
       } finally {
         setLoading(false);
       }

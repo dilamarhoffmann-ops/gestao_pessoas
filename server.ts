@@ -758,6 +758,27 @@ app.post('/api/users/:id/force-reset', async (req, res) => {
   }
 });
 
+app.delete('/api/users/:id/auth', async (req, res) => {
+  const { id } = req.params;
+  if (!supabaseServiceKey || supabaseServiceKey === 'dummy_key') {
+    return res.status(500).json({ error: 'Falta a chave SUPABASE_SERVICE_ROLE_KEY no backend para deletar usuários do Auth.' });
+  }
+
+  try {
+    // Apaga do auth.users (isso também pode apagar em cascata da tabela profiles dependendo da sua configuração do banco, mas podemos apagar do profile antes por garantia)
+    const { error: deleteProfileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
+    // Mesmo se der erro no profile (ex: não existir), tentamos deletar do auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+
+    if (authError) throw authError;
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[API] Erro ao deletar o usuário do Auth:', err);
+    res.status(500).json({ error: err.message || 'Erro ao deletar o usuário do sistema' });
+  }
+});
+
 // Receipt Configurations
 app.get('/api/receipt-configurations/:receiptId', (req, res) => {
   const { receiptId } = req.params;
