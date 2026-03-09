@@ -109,7 +109,11 @@ export default function ConfigurationPage() {
             });
 
             if (!res.ok) {
-                const errData = await res.json();
+                const errText = await res.text();
+                let errData;
+                try { errData = JSON.parse(errText); } catch (e) {
+                    throw new Error(`Erro do servidor (Status ${res.status}): ${errText || 'Resposta vazia'}`);
+                }
                 throw new Error(errData.error || 'Erro ao criar usuário');
             }
 
@@ -158,7 +162,11 @@ export default function ConfigurationPage() {
                 });
 
                 if (!res.ok) {
-                    const errData = await res.json();
+                    const errText = await res.text();
+                    let errData;
+                    try { errData = JSON.parse(errText); } catch (e) {
+                        throw new Error(`Erro do servidor (Status ${res.status}): ${errText || 'Resposta vazia'}`);
+                    }
                     throw new Error(errData.error || 'Erro ao redefinir a senha');
                 }
 
