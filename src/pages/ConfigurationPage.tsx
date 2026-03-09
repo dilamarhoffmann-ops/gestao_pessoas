@@ -58,7 +58,7 @@ export default function ConfigurationPage() {
 
     const [showResetModal, setShowResetModal] = useState(false);
     const [resettingUser, setResettingUser] = useState<User | null>(null);
-    const [newResetPassword, setNewResetPassword] = useState('123');
+    const [newResetPassword, setNewResetPassword] = useState('123456');
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -93,30 +93,24 @@ export default function ConfigurationPage() {
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            // Create user in Supabase Auth
-            const { data, error } = await supabase.auth.signUp({
-                email: newUser.email,
-                password: newUser.password,
-                options: {
-                    data: {
-                        name: newUser.name,
-                        role: newUser.role,
-                        allowed: newUser.allowed === 'true'
-                    }
-                }
-            });
-            if (error) throw error;
-
-            // Update profile with extra fields
-            if (data.user) {
-                await supabase.from('profiles').update({
-                    area: newUser.area,
-                    allowed: newUser.allowed === 'true',
+            const res = await fetch('/api/admin/users/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: newUser.email,
+                    password: newUser.password,
+                    name: newUser.name,
                     role: newUser.role,
-                    must_change_password: true,
+                    allowed: newUser.allowed === 'true',
+                    area: newUser.area,
                     approver: newUser.approver === 'true',
                     allowed_menus: newUser.allowed_menus
-                }).eq('id', data.user.id);
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Erro ao criar usuário');
             }
 
             setShowAddModal(false);
@@ -149,18 +143,30 @@ export default function ConfigurationPage() {
         e.preventDefault();
         if (resettingUser) {
             try {
-                // We set the flag in the profile. 
-                // Since we can't change Supabase Auth password without a backend service role key,
-                // we assume the user either knows their password or the admin has another way,
-                // BUT we force our custom requirement.
-                await usersService.update(resettingUser.id as any, {
-                    must_change_password: true
+                if (!newResetPassword || newResetPassword.length < 6) {
+                    alert('A senha padrão precisa ter pelo menos 6 caracteres para ser aceita pelo Supabase.');
+                    return;
+                }
+
+                const res = await fetch('/api/admin/users/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: resettingUser.id,
+                        newPassword: newResetPassword
+                    })
                 });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || 'Erro ao redefinir a senha');
+                }
 
                 setShowResetModal(false);
                 setResettingUser(null);
+                setNewResetPassword('123456'); // Reset for next time
                 fetchUsers();
-                alert(`Troca de senha OBRIGATÓRIA ativada para ${resettingUser.name}. O acesso será bloqueado até que ele defina uma nova credencial.`);
+                alert(`Senha redefinida para '${newResetPassword}' e troca OBRIGATÓRIA ativada para ${resettingUser.name}. O acesso será bloqueado até que ele defina uma nova credencial usando essa senha.`);
             } catch (err: any) {
                 console.error(err);
                 alert('Erro ao processar reset de permissões: ' + (err.message || 'Desconhecido'));
@@ -269,7 +275,7 @@ export default function ConfigurationPage() {
                                         </span>
                                     </td>
                                     <td className="py-7 px-6 text-center">
-                                        <div className="flex flex-col items-center gap-1">
+                                        <div className="flex flex-col items-center gap-1.5">
                                             <button
                                                 onClick={() => {
                                                     if (activeUser?.id === user.id) return;
@@ -277,21 +283,21 @@ export default function ConfigurationPage() {
                                                 }}
                                                 disabled={activeUser?.id === user.id}
                                                 className={cn(
-                                                    "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[11px] font-bold transition-all",
-                                                    user.allowed
-                                                        ? 'bg-[#ecfdf5] text-[#10b981]'
-                                                        : 'bg-[#fef2f2] text-[#ef4444]',
-                                                    activeUser?.id === user.id ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'
+                                                    "inline-flex items-center gap-2 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border shadow-sm",
+                                                    user.must_change_password
+                                                        ? 'bg-amber-50 border-amber-200 text-amber-600'
+                                                        : (user.allowed ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-rose-50 border-rose-200 text-rose-600'),
+                                                    activeUser?.id === user.id ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-95 active:scale-95'
                                                 )}
                                             >
-                                                {user.allowed ? <CheckCircle size={15} /> : <ShieldAlert size={15} />}
-                                                {user.allowed ? 'Acesso Liberado' : 'Acesso Bloqueado'}
+                                                {user.must_change_password ? <Lock size={13} /> : (user.allowed ? <CheckCircle size={13} /> : <X size={13} />)}
+                                                {user.must_change_password ? 'Senha Pendente' : (user.allowed ? 'Acesso Ativo' : 'Acesso Negado')}
                                             </button>
 
                                             {user.must_change_password && (
-                                                <div className="flex items-center gap-1.5 text-amber-500 animate-pulse mt-1">
-                                                    <RotateCcw size={12} />
-                                                    <span className="text-[9px] font-black uppercase tracking-tighter">Troca Obrigatória</span>
+                                                <div className="flex items-center gap-1.5 text-amber-500 font-bold group-hover:scale-110 transition-transform">
+                                                    <RotateCcw size={11} className="animate-spin-slow" />
+                                                    <span className="text-[8px] uppercase tracking-tighter">Troca Obrigatória</span>
                                                 </div>
                                             )}
                                         </div>
@@ -511,10 +517,20 @@ export default function ConfigurationPage() {
                             </div>
                             <h3 className="text-xl font-bold text-[#1e293b]">Exigir Troca de Senha</h3>
                             <p className="text-sm text-[#64748b] mt-2 font-medium px-2">
-                                Ao confirmar, <strong>{resettingUser?.name}</strong> será obrigado a definir uma nova senha no próximo acesso.
+                                Ao confirmar, <strong>{resettingUser?.name}</strong> precisará acessar o sistema usando a nova senha abaixo e será obrigado a alterá-la.
                             </p>
                             <form onSubmit={handleResetSubmit} className="mt-6 space-y-4">
-                                <button type="submit" className="w-full py-3.5 bg-amber-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm">
+                                <div className="text-left space-y-1.5">
+                                    <label className="text-[9px] font-bold text-[#94a3b8] uppercase tracking-widest pl-1">Senha Provisória Escohida</label>
+                                    <input
+                                        type="text"
+                                        value={newResetPassword}
+                                        onChange={e => setNewResetPassword(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-3 bg-[#f8fafc] border-none rounded-xl font-semibold text-center text-[#1e293b] focus:ring-2 focus:ring-amber-500 transition-all text-lg tracking-widest"
+                                    />
+                                </div>
+                                <button type="submit" className="w-full py-3.5 bg-amber-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-sm mt-4">
                                     Ativar Exigência
                                 </button>
                                 <button type="button" onClick={() => setShowResetModal(false)} className="w-full py-2 text-xs text-gray-400 font-bold uppercase tracking-widest hover:text-gray-600 transition-colors">

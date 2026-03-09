@@ -1065,44 +1065,65 @@ app.post('/api/auth/change-password', (req, res) => {
   }
 });
 
-// --- Auth Routes ---
-
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
+// --- Admin User Management Routes (Supabase) ---
+app.post('/api/admin/users/create', async (req, res) => {
+  const { email, password, name, role, allowed, area, allowed_menus, approver } = req.body;
   try {
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
-    if (!user) {
-      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
-    }
-    if (user.password !== password) {
-      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
-    }
-    if (!user.allowed) {
-      return res.status(403).json({ error: 'Acesso ainda não liberado. Aguarde aprovação de um gestor.' });
-    }
-    const { password: _, ...safeUser } = user;
-    res.json({ user: safeUser });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Erro interno no servidor.' });
-  }
-});
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, role, allowed }
+    });
 
-app.post('/api/auth/register', (req, res) => {
-  const { name, email, password, area } = req.body;
-  try {
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-    if (existing) {
-      return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+    if (error) {
+      return res.status(400).json({ error: error.message });
     }
-    const stmt = db.prepare('INSERT INTO users (name, email, password, role, allowed, area, requiresPasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    stmt.run(name, email, password, 'Usuario', 0, area, 1);
+
+    if (data.user) {
+      await supabaseAdmin.from('profiles').upsert({
+        id: data.user.id,
+        email: email,
+        name: name,
+        role: role,
+        allowed: allowed,
+        area: area,
+        allowed_menus: allowed_menus,
+        approver: approver,
+        must_change_password: true
+      });
+    }
+
     res.json({ success: true });
-  } catch (err) {
-    console.error('Register error:', err);
+  } catch (err: any) {
+    console.error('Admin create user error:', err);
     res.status(500).json({ error: 'Erro ao processar registro.' });
   }
 });
+
+app.post('/api/admin/users/reset-password', async (req, res) => {
+  const { id, newPassword } = req.body;
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      password: newPassword
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    await supabaseAdmin.from('profiles').update({
+      must_change_password: true
+    }).eq('id', id);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Admin reset password error:', err);
+    res.status(500).json({ error: 'Erro ao processar alteração de senha.' });
+  }
+});
+
+// --- Legacy Auth Routes (SQLite) ---
 
 app.post('/api/auth/change-password', (req, res) => {
   const { email, newPassword } = req.body;

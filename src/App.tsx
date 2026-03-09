@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import LoginView from './pages/LoginView';
@@ -7,13 +7,13 @@ import { supabase } from './lib/supabase';
 import { authService } from './lib/supabase-service';
 
 // Lazy load pages for better performance
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const DiscountsPage = lazy(() => import('./pages/DiscountsPage'));
-const LawsuitsPage = lazy(() => import('./pages/LawsuitsPage'));
-const HiringPage = lazy(() => import('./pages/HiringPage'));
-const ConfigurationPage = lazy(() => import('./pages/ConfigurationPage'));
-const DiscAssessmentPage = lazy(() => import('./pages/DiscAssessmentPage'));
-const ReceiptsPage = lazy(() => import('./pages/ReceiptsPage'));
+import Dashboard from './pages/Dashboard';
+import DiscountsPage from './pages/DiscountsPage';
+import LawsuitsPage from './pages/LawsuitsPage';
+import HiringPage from './pages/HiringPage';
+import ConfigurationPage from './pages/ConfigurationPage';
+import DiscAssessmentPage from './pages/DiscAssessmentPage';
+import ReceiptsPage from './pages/ReceiptsPage';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -21,66 +21,72 @@ export default function App() {
   const isPublicRoute = window.location.pathname.startsWith('/disc-assessment');
 
   useEffect(() => {
-    const initAuth = async () => {
-      console.log("Initializing Auth...");
-      try {
-        // Fallback timeout para garantir que não fique em carregamento infinito 
-        // caso o Supabase ou o localStorage estejam corrompidos
-        const timeoutPromise = new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error("Supabase auth timeout")), 5000)
-        );
-        const profile = await Promise.race([
-          authService.getCurrentProfile(),
-          timeoutPromise
-        ]);
+    let isInitializing = true;
 
-        if (profile) {
-          console.log("Found existing session profile:", profile.email);
-          handleLogin(profile);
-        } else {
-          console.log("No active session found on init.");
+    const setupAuth = async () => {
+      console.log("Setting up Auth Listener...");
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('--- Auth Event ---', event);
+
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+          if (session?.user) {
+            console.log('User detected in session:', session.user.email);
+            // Break out of the event loop to prevent Supabase Auth deadlock
+            // Supabase.from() queries require session lock, which is currently held by onAuthStateChange!
+            setTimeout(async () => {
+              try {
+                const profile = await authService.getCurrentProfile(session.user.id);
+                if (profile) {
+                  const isRecovery = event === 'PASSWORD_RECOVERY';
+                  const finalProfile = isRecovery ? { ...profile, must_change_password: true } : profile;
+
+                  console.log('Applying profile to state:', finalProfile.email, 'Must change:', !!finalProfile.must_change_password);
+                  handleLogin(finalProfile);
+                } else {
+                  console.warn('Profile not found for session in onAuthStateChange');
+                  handleLogout(); // Clean state if profile is invalid
+                }
+              } catch (err) {
+                console.error('Error fetching profile in state change:', err);
+                handleLogout();
+              } finally {
+                setLoading(false);
+              }
+            }, 0);
+          } else {
+            console.log('No user in session during', event);
+            handleLogout();
+            setLoading(false);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('Signed out event detected');
+          handleLogout();
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("Critical error during auth init:", err);
-        // Em caso de erro corrompido, limpamos a sessão para evitar loop no recarregamento
-        handleLogout();
-        // Além disso, também limpe os dados locais do Supabase para destravar se necessário
-        localStorage.removeItem('supabase.auth.token');
-      } finally {
-        setLoading(false);
-      }
+      });
+
+      return subscription;
     };
 
-    initAuth();
+    let sub: any;
+    setupAuth().then(s => sub = s);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('--- Auth Event ---', event);
-
-      if (session?.user) {
-        console.log('User detected in session:', session.user.email);
-        try {
-          const profile = await authService.getCurrentProfile();
-          if (profile) {
-            const isRecovery = event === 'PASSWORD_RECOVERY';
-            const finalProfile = isRecovery ? { ...profile, must_change_password: true } : profile;
-
-            console.log('Applying profile to state:', finalProfile.email, 'Must change:', !!finalProfile.must_change_password);
-            handleLogin(finalProfile);
-          } else {
-            console.warn('Profile not found for session in onAuthStateChange');
-          }
-        } catch (err) {
-          console.error('Error fetching profile in state change:', err);
+    // Safety timeout in case INITIAL_SESSION never fires or hangs
+    const timeoutId = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) {
+          console.error("Auth init timeout - forcing load state to false");
+          return false;
         }
-      }
+        return prev;
+      });
+    }, 5000);
 
-      if (event === 'SIGNED_OUT') {
-        console.log('Signed out event detected');
-        handleLogout();
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      if (sub) sub.unsubscribe();
+    };
   }, []);
 
   const handleLogin = (userData: any) => {
@@ -104,15 +110,15 @@ export default function App() {
   return (
     <BrowserRouter>
       {isPublicRoute ? (
-        <Suspense fallback={<LoadingSpinner />}>
+        <>
           <Routes>
             <Route path="/disc-assessment/:id" element={<DiscAssessmentPage />} />
             <Route path="*" element={<Navigate to={`/`} />} />
           </Routes>
-        </Suspense>
+        </>
       ) : (
         <Layout user={user} onLogout={handleLogout}>
-          <Suspense fallback={<LoadingSpinner />}>
+          <>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/discounts" element={<DiscountsPage />} />
@@ -122,7 +128,7 @@ export default function App() {
               <Route path="/configuration" element={<ConfigurationPage />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
-          </Suspense>
+          </>
         </Layout>
       )}
     </BrowserRouter>

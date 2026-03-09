@@ -42,15 +42,20 @@ const uploadToS3 = async (file: File, folder: string): Promise<string> => {
 
 export const authService = {
     async login(email: string, password: string) {
+        console.log('[authService.login] Starting login for', email);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        console.log('[authService.login] signInWithPassword completed. Error:', error);
         if (error) throw new Error(error.message);
 
+        console.log('[authService.login] Fetching profile for id:', data.user.id);
         // Fetch or Create profile
         let { data: profile, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
+
+        console.log('[authService.login] Profile fetch completed. Error:', profileErr);
 
         // If profile is missing but user is authenticated, try to auto-create it (Synchronize)
         if (profileErr || !profile) {
@@ -129,24 +134,38 @@ export const authService = {
         return data.session;
     },
 
-    async getCurrentProfile() {
-        const { data: { user }, error: userErr } = await supabase.auth.getUser();
-        if (userErr || !user) return null;
+    async getCurrentProfile(userId?: string) {
+        let uid = userId;
+        let authUser: any = null;
 
+        if (!uid) {
+            console.log('[authService.getCurrentProfile] Calling supabase.auth.getUser()');
+            const { data: { user }, error: userErr } = await supabase.auth.getUser();
+            if (userErr || !user) return null;
+            uid = user.id;
+            authUser = user;
+        } else {
+            console.log('[authService.getCurrentProfile] Using provided userId:', uid);
+            // Minimal mock for the self-fix feature if authUser isn't fully loaded
+            authUser = { id: uid };
+        }
+
+        console.log('[authService.getCurrentProfile] Fetching profile for user', uid);
         let { data: profile, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', user.id)
+            .eq('id', uid)
             .single();
+        console.log('[authService.getCurrentProfile] Fetched profile. Error:', profileErr);
 
         // Self-fix profile if missing while session is active
-        if ((profileErr || !profile) && user) {
+        if ((profileErr || !profile) && authUser) {
             const { data: newProfile } = await supabase
                 .from('profiles')
                 .insert([{
-                    id: user.id,
-                    name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-                    email: user.email || '',
+                    id: authUser.id,
+                    name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+                    email: authUser.email || '',
                     role: 'Usuario',
                     allowed: true
                 }])
@@ -155,7 +174,7 @@ export const authService = {
             profile = newProfile;
         }
 
-        return profile ? { ...profile, email: user.email } : null;
+        return profile ? { ...profile, email: authUser?.email } : null;
     }
 };
 
