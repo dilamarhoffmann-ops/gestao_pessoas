@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv';
+import path from 'path';
 
-// Initialize Supabase Admin Client using the SERVICE_ROLE_KEY
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 const supabaseAdminUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -22,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!supabaseServiceKey || supabaseServiceKey === 'dummy_key') {
         console.error('Missing SUPABASE_SERVICE_ROLE_KEY configuration.');
-        return res.status(500).json({ error: 'Configuração do sistema incorreta: chave de serviço ausente.' });
+        return res.status(500).json({ error: 'Configuração do sistema incorreta: chave de serviço ausente na Vercel ou no arquivo .env local.' });
     }
 
     try {
@@ -34,7 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: error.message });
         }
 
-        // Marcar o usuário como "must_change_password" obrigatório
         await supabaseAdmin.from('profiles').update({
             must_change_password: true
         }).eq('id', id);
