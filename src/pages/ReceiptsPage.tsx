@@ -32,6 +32,8 @@ type ReceiptType = {
     requester?: string;
     custom_id?: string;
     is_configured?: boolean;
+    has_multiple_beneficiaries?: boolean;
+    multiple_beneficiaries?: string;
 };
 
 type User = {
@@ -133,6 +135,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                             pix_key: config.pix_key || '',
                             requester: config.requester || '',
                             custom_id: config.custom_id || '',
+                            has_multiple_beneficiaries: config.has_multiple_beneficiaries || false,
+                            multiple_beneficiaries: config.multiple_beneficiaries || '',
                             value: config.value || 0,
                             date: config.date || '',
                             items: config.items_json ? (typeof config.items_json === 'string' ? JSON.parse(config.items_json) : config.items_json) : []
@@ -427,7 +431,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                 entry_id: entry.id
             });
             setIsPrintModalOpen(true);
-            setTimeout(() => window.print(), 500);
+            setTimeout(() => window.print(), 800);
         }
     };
 
@@ -732,13 +736,40 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                             </select>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest pl-1">Nome do Fornecedor / Destinatário</label>
+                                            <div className="flex items-center justify-between pl-1">
+                                                <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest">Nome do Fornecedor / Destinatário</label>
+                                                <label className="flex items-center gap-1.5 cursor-pointer group">
+                                                    <div className="relative flex items-center justify-center">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only"
+                                                            checked={selectedItem.has_multiple_beneficiaries || false}
+                                                            onChange={(e) => setSelectedItem({ ...selectedItem, has_multiple_beneficiaries: e.target.checked })}
+                                                        />
+                                                        <div className={cn(
+                                                            "w-3 h-3 rounded transition-all flex items-center justify-center border",
+                                                            selectedItem.has_multiple_beneficiaries ? "bg-primary border-primary" : "bg-white border-slate-300 group-hover:border-primary/50"
+                                                        )}>
+                                                            <Check size={8} className={cn("text-white transition-opacity", selectedItem.has_multiple_beneficiaries ? "opacity-100" : "opacity-0")} />
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[9px] font-bold text-deep-navy/40 uppercase tracking-widest group-hover:text-primary transition-colors">Mais de 1 beneficiário</span>
+                                                </label>
+                                            </div>
                                             <input
                                                 value={selectedItem.supplier_name || ''}
                                                 onChange={(e) => setSelectedItem({ ...selectedItem, supplier_name: e.target.value })}
                                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-deep-navy text-sm"
                                                 placeholder="Nome completo ou Razão Social"
                                             />
+                                            {selectedItem.has_multiple_beneficiaries && (
+                                                <textarea
+                                                    value={selectedItem.multiple_beneficiaries || ''}
+                                                    onChange={(e) => setSelectedItem({ ...selectedItem, multiple_beneficiaries: e.target.value })}
+                                                    className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-deep-navy text-sm min-h-[60px]"
+                                                    placeholder="Nomes dos demais beneficiários..."
+                                                />
+                                            )}
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest pl-1">CPF / CNPJ do Fornecedor</label>
@@ -1296,7 +1327,8 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                     initial={{ opacity: 0, scale: 0.9, y: 30 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 30 }}
-                                    className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl p-0 relative border border-white/20 overflow-hidden print:overflow-visible print:rounded-none print:shadow-none print:border-none"
+                                    className="bg-white p-0 relative shadow-2xl overflow-hidden print:shadow-none print:overflow-visible"
+                                    style={{ width: '210mm', maxWidth: 'none' }}
                                 >
                                     {/* Modal Header */}
                                     <div className="bg-primary p-8 flex justify-between items-center text-white no-print">
@@ -1341,11 +1373,19 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                         </div>
                                     </div>
 
-                                    {/* Actual Receipt Document */}
-                                    <div className="p-12 bg-white flex flex-col items-center" id="receipt-document">
-                                        <div className="w-full border-4 border-double border-slate-900 p-8 space-y-8">
+                                    {/* Actual Receipt Document - Exact print dimensions matched */}
+                                    <div 
+                                        className="bg-white flex flex-col items-center mx-auto print:p-0" 
+                                        id="receipt-document"
+                                        style={{ 
+                                            width: '190mm', 
+                                            minHeight: '277mm',
+                                            padding: '10mm'
+                                        }}
+                                    >
+                                        <div className="w-full border-4 border-double border-slate-900 p-6 space-y-6">
 
-                                            <div className="flex flex-col items-center pb-12">
+                                            <div className="flex flex-col items-center pb-6">
                                                 <div className="w-full py-4 flex items-center justify-center bg-slate-50/50 rounded-xl border border-slate-100/50">
                                                     <img src="/logo.png" alt="Logo APOIO" className="w-[50px] h-auto" />
                                                 </div>
@@ -1368,7 +1408,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                             </div>
 
                                             {/* Receipt Body */}
-                                            <div className="space-y-8 py-4">
+                                            <div className="space-y-4 py-4">
                                                 <div className="text-justify leading-relaxed text-sm text-slate-800">
                                                     Recebemos da <span className="font-black uppercase">{companies.find(c => c.id === previewItem.company_id)?.name || '____________________'}</span>,
                                                     inscrita no CNPJ sob o nº <span className="font-black">{companies.find(c => c.id === previewItem.company_id)?.cnpj || '__.___.___/____-__'}</span>,
@@ -1378,7 +1418,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
 
                                                 {/* Items Table - Show for all if items exist */}
                                                 {previewItem.items && previewItem.items.length > 0 && (
-                                                    <div className="mt-6 border border-slate-900">
+                                                    <div className="mt-4 border border-slate-900">
                                                         <div className="bg-slate-900 text-white flex px-4 py-2 font-black uppercase text-[10px] tracking-widest">
                                                             <div className="flex-1">Descrição do Item</div>
                                                             <div className="w-40 text-center">Referência</div>
@@ -1418,6 +1458,11 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                     Favorecido: <span className="font-black not-italic uppercase">{previewItem.supplier_name || '__________________________'}</span>,
                                                     CPF/CNPJ: <span className="font-bold not-italic font-mono text-sm">{previewItem.supplier_document || '000.000.000-00'}</span>.
                                                 </p>
+                                                {previewItem.has_multiple_beneficiaries && (
+                                                    <p className="text-base font-medium italic mt-2">
+                                                        Demais Favorecidos: <span className="font-black not-italic uppercase">{previewItem.multiple_beneficiaries || '__________________________'}</span>
+                                                    </p>
+                                                )}
 
                                                 {previewItem.requester && (
                                                     <p className="text-xs font-black text-slate-500 uppercase">
@@ -1484,7 +1529,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                     if (entry) {
                                                         setPreviewItem({ ...previewItem, ...entry, entry_id: entry.id });
                                                     }
-                                                    setTimeout(() => window.print(), 300);
+                                                    setTimeout(() => window.print(), 800);
                                                 }}
                                             >
                                                 <Download size={16} /> Emitir e Salvar PDF
