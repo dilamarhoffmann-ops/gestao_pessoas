@@ -1,0 +1,16 @@
+Documentos/
+*.db
+*.sqlite
+*.zip
+node_modules/
+.git/
+.vscode/
+.env*
+! .env.example
+gestao_pessoas/
+dist/
+build/
+coverage/
+temp/
+tmp/
+*.log
