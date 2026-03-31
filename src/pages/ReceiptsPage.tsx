@@ -95,6 +95,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
         isOpen: false
     });
     const allAvailableModels = receiptSections.flatMap(s => s.items);
+    const isGestor = user?.role === 'Gestor' || user?.approver;
 
     useEffect(() => {
         fetchInitialData();
@@ -152,15 +153,32 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
         }
     };
 
-    const handleOpenConfig = (item: ReceiptType) => {
+    const handleOpenConfig = (item: ReceiptType, isNew: boolean = false) => {
         let items = item.items || [];
 
         // Initialize specific items based on type if empty
-        if (items.length === 0) {
+        if (items.length === 0 || isNew) {
             items = [{ id: 'default-1', label: '', value: 0, reference: '' }];
         }
 
-        setSelectedItem({ ...item, items });
+        if (isNew) {
+            setSelectedItem({
+                ...item,
+                supplier_name: '',
+                supplier_document: '',
+                payment_reason: '',
+                value: 0,
+                date: new Date().toISOString().split('T')[0], // Default to today for new receipts
+                pix_key: '',
+                requester: '',
+                custom_id: '',
+                multiple_beneficiaries: '',
+                has_multiple_beneficiaries: false,
+                items
+            });
+        } else {
+            setSelectedItem({ ...item, items });
+        }
         setIsConfigModalOpen(true);
     };
 
@@ -472,70 +490,74 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                         <p className="text-deep-navy/40 font-bold text-sm tracking-tight">Emissão e gestão de documentos de conformidade e departamento pessoal.</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => {
-                            setReceiptToEdit(null);
-                            setIsSelectionModalOpen(true);
-                        }}
-                        className="px-6 py-3 bg-primary text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
-                    >
-                        <Plus size={18} /> Novo Recibo
-                    </button>
-                    <button
-                        onClick={() => setIsCompanyModalOpen(true)}
-                        className="px-6 py-3 bg-white border border-slate-200 text-deep-navy font-black uppercase text-xs tracking-widest rounded-xl hover:border-primary/30 transition-all shadow-sm flex items-center gap-2"
-                    >
-                        <Building2 size={18} /> Empresas
-                    </button>
-                    <button
-                        onClick={() => setIsModelsModalOpen(true)}
-                        className="px-6 py-3 bg-white border border-slate-200 text-deep-navy font-black uppercase text-xs tracking-widest rounded-xl hover:border-primary/30 transition-all shadow-sm flex items-center gap-2"
-                    >
-                        <FileText size={18} /> Modelo Padrão
-                    </button>
-                </div>
+                {isGestor && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                setReceiptToEdit(null);
+                                setIsSelectionModalOpen(true);
+                            }}
+                            className="px-6 py-3 bg-primary text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+                        >
+                            <Plus size={18} /> Novo Recibo
+                        </button>
+                        <button
+                            onClick={() => setIsCompanyModalOpen(true)}
+                            className="px-6 py-3 bg-white border border-slate-200 text-deep-navy font-black uppercase text-xs tracking-widest rounded-xl hover:border-primary/30 transition-all shadow-sm flex items-center gap-2"
+                        >
+                            <Building2 size={18} /> Empresas
+                        </button>
+                        <button
+                            onClick={() => setIsModelsModalOpen(true)}
+                            className="px-6 py-3 bg-white border border-slate-200 text-deep-navy font-black uppercase text-xs tracking-widest rounded-xl hover:border-primary/30 transition-all shadow-sm flex items-center gap-2"
+                        >
+                            <FileText size={18} /> Modelo Padrão
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
-                        <CheckCircle size={24} />
+            {isGestor && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
+                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
+                            <CheckCircle size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Emitidos</p>
+                            <p className="text-xl font-black text-deep-navy">{issuedReceipts.length}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Emitidos</p>
-                        <p className="text-xl font-black text-deep-navy">{issuedReceipts.length}</p>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
+                        <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+                            <Clock size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Pendentes</p>
+                            <p className="text-xl font-black text-deep-navy">{issuedReceipts.filter(r => r.status === 'pending').length}</p>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
+                            <Building2 size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Empresas</p>
+                            <p className="text-xl font-black text-deep-navy">{companies.length}</p>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
+                        <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Modelos</p>
+                            <p className="text-xl font-black text-deep-navy">{receiptSections.reduce((acc, s) => acc + s.items.length, 0)}</p>
+                        </div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
-                    <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
-                        <Clock size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Pendentes</p>
-                        <p className="text-xl font-black text-deep-navy">{issuedReceipts.filter(r => r.status === 'pending').length}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
-                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
-                        <Building2 size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Empresas</p>
-                        <p className="text-xl font-black text-deep-navy">{companies.length}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center gap-5 shadow-sm">
-                    <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
-                        <FileText size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-deep-navy/30 uppercase tracking-widest">Modelos</p>
-                        <p className="text-xl font-black text-deep-navy">{receiptSections.reduce((acc, s) => acc + s.items.length, 0)}</p>
-                    </div>
-                </div>
-            </div>
+            )}
 
             {/* Receipt History Section */}
             <div className="space-y-6">
@@ -577,27 +599,29 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setReceiptToEdit(entry);
-                                                    const base = allAvailableModels.find(m => m.id === entry.receipt_type_id);
-                                                    if (base) {
-                                                        setSelectedItem({
-                                                            ...base,
-                                                            ...entry,
-                                                            value: entry.amount,
-                                                            supplier_name: entry.employee_name,
-                                                            supplier_document: entry.employee_document,
-                                                            date: entry.payment_date
-                                                        });
-                                                        setIsConfigModalOpen(true);
-                                                    }
-                                                }}
-                                                className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary/20 rounded-xl transition-all shadow-sm"
-                                                title="Editar Registro"
-                                            >
-                                                <Settings size={16} />
-                                            </button>
+                                            {isGestor && (
+                                                <button
+                                                    onClick={() => {
+                                                        setReceiptToEdit(entry);
+                                                        const base = allAvailableModels.find(m => m.id === entry.receipt_type_id);
+                                                        if (base) {
+                                                            setSelectedItem({
+                                                                ...base,
+                                                                ...entry,
+                                                                value: entry.amount,
+                                                                supplier_name: entry.employee_name,
+                                                                supplier_document: entry.employee_document,
+                                                                date: entry.payment_date
+                                                            });
+                                                            setIsConfigModalOpen(true);
+                                                        }
+                                                    }}
+                                                    className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary/20 rounded-xl transition-all shadow-sm"
+                                                    title="Editar Registro"
+                                                >
+                                                    <Settings size={16} />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => {
                                                     const base = allAvailableModels.find(m => m.id === entry.receipt_type_id);
@@ -617,13 +641,15 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                             >
                                                 <Download size={16} />
                                             </button>
-                                            <button
-                                                onClick={() => handleDeleteIssuedReceipt(entry.id)}
-                                                className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-500 hover:border-rose-100 rounded-xl transition-all shadow-sm"
-                                                title="Excluir Registro"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {isGestor && (
+                                                <button
+                                                    onClick={() => handleDeleteIssuedReceipt(entry.id)}
+                                                    className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-rose-500 hover:border-rose-100 rounded-xl transition-all shadow-sm"
+                                                    title="Excluir Registro"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -652,48 +678,50 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                     </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {receiptSections.flatMap(section => section.items).map((item) => (
-                        <div
-                            key={item.id}
-                            onClick={() => handleOpenConfig(item)}
-                            className="bg-white border border-slate-100 p-6 rounded-[2.5rem] flex items-center justify-between group hover:shadow-premium transition-all cursor-pointer select-none active:scale-[0.98]"
-                        >
-                            <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-deep-navy/20 group-hover:text-primary group-hover:bg-primary/5 transition-all">
-                                    {React.isValidElement(item.icon) ? React.cloneElement(item.icon as React.ReactElement, { size: 20 }) : <FileText size={20} />}
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-black text-deep-navy tracking-tight uppercase">{item.label}</span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {item.is_configured && (
-                                            <span className="bg-primary/5 text-primary text-[8px] font-black px-2 py-0.5 rounded-full border border-primary/10 uppercase tracking-tighter flex items-center gap-1">
-                                                <CheckCircle size={8} /> Padrão Salvo
+                {isGestor && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {receiptSections.flatMap(section => section.items).map((item) => (
+                            <div
+                                key={item.id}
+                                onClick={() => handleOpenConfig(item)}
+                                className="bg-white border border-slate-100 p-6 rounded-[2.5rem] flex items-center justify-between group hover:shadow-premium transition-all cursor-pointer select-none active:scale-[0.98]"
+                            >
+                                <div className="flex items-center gap-5">
+                                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-deep-navy/20 group-hover:text-primary group-hover:bg-primary/5 transition-all">
+                                        {React.isValidElement(item.icon) ? React.cloneElement(item.icon as React.ReactElement, { size: 20 }) : <FileText size={20} />}
+                                    </div>
+                                    <div>
+                                        <span className="block text-[11px] font-black text-deep-navy tracking-tight uppercase">{item.label}</span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {item.is_configured && (
+                                                <span className="bg-primary/5 text-primary text-[8px] font-black px-2 py-0.5 rounded-full border border-primary/10 uppercase tracking-tighter flex items-center gap-1">
+                                                    <CheckCircle size={8} /> Padrão Salvo
+                                                </span>
+                                            )}
+                                            <span className={cn(
+                                                "text-[8px] font-black px-2 py-0.5 rounded-full border uppercase tracking-tighter",
+                                                item.has_template ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                                            )}>
+                                                {item.has_template ? 'Template OK' : 'Sem PDF'}
                                             </span>
-                                        )}
-                                        <span className={cn(
-                                            "text-[8px] font-black px-2 py-0.5 rounded-full border uppercase tracking-tighter",
-                                            item.has_template ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                                        )}>
-                                            {item.has_template ? 'Template OK' : 'Sem PDF'}
-                                        </span>
-                                        {item.requires_approval && (
-                                            <span className="bg-amber-50 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-100 uppercase tracking-tighter">
-                                                Exige Aprovação
-                                            </span>
-                                        )}
+                                            {item.requires_approval && (
+                                                <span className="bg-amber-50 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-100 uppercase tracking-tighter">
+                                                    Exige Aprovação
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
+                                <div
+                                    className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-sm"
+                                    title="Configurar Modelo Padrão"
+                                >
+                                    <Settings size={18} />
+                                </div>
                             </div>
-                            <div
-                                className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-sm"
-                                title="Configurar Modelo Padrão"
-                            >
-                                <Settings size={18} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Config Modal */}
@@ -1359,8 +1387,15 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                         </div>
                                         <div className="flex gap-4">
                                             <button
-                                                onClick={() => window.print()}
-                                                className="px-6 py-2 bg-white text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
+                                                disabled={previewItem.requires_approval && !previewItem.is_approved}
+                                                onClick={async () => {
+                                                    const entry = await handleEmitReceipt(previewItem);
+                                                    if (entry) {
+                                                        setPreviewItem({ ...previewItem, ...entry, entry_id: entry.id });
+                                                    }
+                                                    setTimeout(() => window.print(), 800);
+                                                }}
+                                                className="px-6 py-2 bg-white text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 <Printer size={14} /> Imprimir Agora
                                             </button>
@@ -1523,7 +1558,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                             </button>
                                             <button
                                                 disabled={previewItem.requires_approval && !previewItem.is_approved}
-                                                className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="px-8 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 hover:bg-deep-blue transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 onClick={async () => {
                                                     const entry = await handleEmitReceipt(previewItem);
                                                     if (entry) {
@@ -1532,7 +1567,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                     setTimeout(() => window.print(), 800);
                                                 }}
                                             >
-                                                <Download size={16} /> Emitir e Salvar PDF
+                                                <Printer size={16} /> Imprimir Agora
                                             </button>
                                         </div>
                                     </div>
@@ -1580,7 +1615,7 @@ export default function ReceiptsPage({ user }: ReceiptsPageProps) {
                                                 whileHover={{ y: -4, scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={() => {
-                                                    handleOpenConfig(item);
+                                                    handleOpenConfig(item, true);
                                                     setIsSelectionModalOpen(false);
                                                 }}
                                                 className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-5 hover:border-primary/30 hover:shadow-premium transition-all text-left group"

@@ -61,7 +61,7 @@ export default function Layout({ children, user, onLogout }: { children: React.R
           {isAllowed('financeiro') && <SideNavItem to="/discounts" icon={<DollarSign size={20} />} label="Financeiro" isExpanded={isExpanded} />}
           {isAllowed('juridico') && <SideNavItem to="/lawsuits" icon={<Scale size={20} />} label="Jurídico" isExpanded={isExpanded} />}
           {isAllowed('gestao') && <SideNavItem to="/hiring" icon={<Users size={20} />} label="Gestão" isExpanded={isExpanded} />}
-          {isAllowed('recibos') && <SideNavItem to="/receipts" icon={<Printer size={20} />} label="Recibos" isExpanded={isExpanded} />}
+          <SideNavItem to="/receipts" icon={<Printer size={20} />} label="Recibos" isExpanded={isExpanded} />
         </nav>
 
         <div className={cn(

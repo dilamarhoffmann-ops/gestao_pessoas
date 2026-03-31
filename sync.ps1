@@ -19,7 +19,7 @@ function Write-Error-Custom($text) {
 }
 
 try {
-    Clear-Host
+    # Clear-Host
     Write-Host "🚀 Iniciando Sincronização AgilPulse Dashboard" -ForegroundColor Yellow -BackgroundColor Blue
     Write-Host "Data/Hora: $(($StartTime).ToString('dd/MM/yyyy HH:mm:ss'))"
 
