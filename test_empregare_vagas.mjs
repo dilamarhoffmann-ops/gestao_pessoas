@@ -45,7 +45,7 @@ async function testVagas() {
         if (vagasData.sucesso) {
             console.log(`Sucesso! Encontradas ${vagasData.vagas ? vagasData.vagas.length : 0} vagas.`);
             if (vagasData.vagas && vagasData.vagas.length > 0) {
-                vagasData.vagas.forEach(v => console.log(`- ID: ${v.idVaga} | Título: ${v.titulo}`));
+                vagasData.vagas.forEach(v => console.log(`- ID: ${v.ID} | Título: ${v.Titulo}`));
             }
         } else {
             console.error('Erro ao listar vagas:', vagasData.mensagem);

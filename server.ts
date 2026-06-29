@@ -1146,6 +1146,21 @@ app.post('/api/admin/users/create', async (req, res) => {
   }
 });
 
+app.delete('/api/admin/users/delete', async (req, res) => {
+  const { id } = req.query;
+  if (!id || typeof id !== 'string') return res.status(400).json({ error: 'ID inválido.' });
+
+  try {
+    const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (authError) throw authError;
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Admin delete user error:', err);
+    res.status(500).json({ error: 'Erro ao processar a exclusão do usuário.' });
+  }
+});
+
 app.post('/api/admin/users/reset-password', async (req, res) => {
   const { id, newPassword } = req.body;
   try {

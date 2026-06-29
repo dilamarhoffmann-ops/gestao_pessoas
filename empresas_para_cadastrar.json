@@ -1,0 +1,372 @@
+[
+  {
+    "cnpj": "01330605000103",
+    "razaoSocial": "SOL COMERCIO DE COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce3d4fcefa012b7c8f5e6"
+  },
+  {
+    "cnpj": "01427744000150",
+    "razaoSocial": "SAO BERNARDO SERVICOS AUTOMOTIVOS LTDA",
+    "certificadoId": "697ce3dbd42e8da0ff056215"
+  },
+  {
+    "cnpj": "01668012000151",
+    "razaoSocial": "OLIVEIRA COMERCIO DE DERIVADOS DE PETROLEO LTDA",
+    "certificadoId": "697ce3e4a88a6839270648cc"
+  },
+  {
+    "cnpj": "02455511000123",
+    "razaoSocial": "ROTA 020 COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce3ef6d0d201dbe73b1fe"
+  },
+  {
+    "cnpj": "02763234000116",
+    "razaoSocial": "AUTO POSTO SIDNEY LTDA",
+    "certificadoId": "697ce3f96d0d201dbe73b3ec"
+  },
+  {
+    "cnpj": "06229055000154",
+    "razaoSocial": "POSTO RODOTRUCK CASTILHO LTDA",
+    "certificadoId": "697ce42b356dc2e92097e181"
+  },
+  {
+    "cnpj": "12810963000130",
+    "razaoSocial": "ACL COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce445a88a68392706610e"
+  },
+  {
+    "cnpj": "18194813000125",
+    "razaoSocial": "LIDER CONSULTORIA E REPRESENTACAO LTDA",
+    "certificadoId": "697ce44c6d0d201dbe73d0a4"
+  },
+  {
+    "cnpj": "22309617000126",
+    "razaoSocial": "CIM EMPREENDIMENTOS IMOBILIARIOS LTDA",
+    "certificadoId": "697ce47b356dc2e92097f825"
+  },
+  {
+    "cnpj": "23049249000197",
+    "razaoSocial": "POSTO SAO ROQUE ALIANCA LTDA",
+    "certificadoId": "697ce484fcefa012b7c93a68"
+  },
+  {
+    "cnpj": "23112210000177",
+    "razaoSocial": "ALIANCA PARTICIPACOES S A",
+    "certificadoId": "697ce48cece1055268ef7406"
+  },
+  {
+    "cnpj": "26075154000136",
+    "razaoSocial": "REI ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce496d42e8da0ff058fc8"
+  },
+  {
+    "cnpj": "26332112000133",
+    "razaoSocial": "LORD ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce49d6d0d201dbe73e076"
+  },
+  {
+    "cnpj": "26428809000102",
+    "razaoSocial": "IMPERADOR ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce4a1f88f9b9d04e95de3"
+  },
+  {
+    "cnpj": "26609432000198",
+    "razaoSocial": "SAO ROQUE MORRINHOS COMERCIO VAREJISTA DE COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce4a8f88f9b9d04e95efa"
+  },
+  {
+    "cnpj": "27233325000170",
+    "razaoSocial": "TRANSRODOTRUCK TRANSPORTES LTDA",
+    "certificadoId": "697ce4adfcefa012b7c9404b"
+  },
+  {
+    "cnpj": "28428268000148",
+    "razaoSocial": "PRINCIPE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce4b2a88a68392706748e"
+  },
+  {
+    "cnpj": "28932629000199",
+    "razaoSocial": "SR ESPLANADA COMERCIO VAREJISTA DE COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce4b9356dc2e920980920"
+  },
+  {
+    "cnpj": "28953109000162",
+    "razaoSocial": "GLADIADOR ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce4c4fcefa012b7c94415"
+  },
+  {
+    "cnpj": "28993561000158",
+    "razaoSocial": "CONDE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce4cca108335efe140e6d"
+  },
+  {
+    "cnpj": "29087671000113",
+    "razaoSocial": "DUQUE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce4d3a108335efe140fa7"
+  },
+  {
+    "cnpj": "29907570000141",
+    "razaoSocial": "SR SAO PAULO COMERCIO VAREJISTA DE COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce4e9a88a683927067ddf"
+  },
+  {
+    "cnpj": "31912144000148",
+    "razaoSocial": "POSTO VEREDA VERDE LTDA",
+    "certificadoId": "697ce501a108335efe14148b"
+  },
+  {
+    "cnpj": "34840241000160",
+    "razaoSocial": "BARAO ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce51df88f9b9d04e97456"
+  },
+  {
+    "cnpj": "35238002000106",
+    "razaoSocial": "REGENTE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce522a108335efe1422ef"
+  },
+  {
+    "cnpj": "35252660000144",
+    "razaoSocial": "ESCUDEIRO ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce527fcefa012b7c959e8"
+  },
+  {
+    "cnpj": "35254858000167",
+    "razaoSocial": "ARQUIDUQUE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce52ea88a683927068d25"
+  },
+  {
+    "cnpj": "35257416000174",
+    "razaoSocial": "SENHOR ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce537d42e8da0ff05a4ee"
+  },
+  {
+    "cnpj": "35257918000103",
+    "razaoSocial": "POSTO SAO ROQUE SIMOLANDIA LTDA",
+    "certificadoId": "697ce540356dc2e9209820e1"
+  },
+  {
+    "cnpj": "35273451000187",
+    "razaoSocial": "POSTO SAO ROQUE ALVORADA LTDA",
+    "certificadoId": "697ce54cf88f9b9d04e97bc1"
+  },
+  {
+    "cnpj": "35359111000173",
+    "razaoSocial": "VISCONDE ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce5576d0d201dbe73fc7b"
+  },
+  {
+    "cnpj": "35378393000156",
+    "razaoSocial": "CAVALEIRO ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce55d6d0d201dbe73fd80"
+  },
+  {
+    "cnpj": "36427450000102",
+    "razaoSocial": "ALVIM INVESTIMENTOS E GESTAO EMPRESARIAL LTDA",
+    "certificadoId": "697ce56534d2c9837f750aa4"
+  },
+  {
+    "cnpj": "37639036000120",
+    "razaoSocial": "SANTA MARIA DERIVADOS DE PETROLEO LTDA",
+    "certificadoId": "697ce569fff555acd837f7e1"
+  },
+  {
+    "cnpj": "38251020000108",
+    "razaoSocial": "SONHO VERDE COMBUSTIVEIS LTDA",
+    "certificadoId": "697ce572f88f9b9d04e98069"
+  },
+  {
+    "cnpj": "39247957000172",
+    "razaoSocial": "CONSORTE PARTICIPACOES S.A",
+    "certificadoId": "697ce578356dc2e9209828bf"
+  },
+  {
+    "cnpj": "39324417000145",
+    "razaoSocial": "ORNELAS PARTICIPACOES EMPRESARIAIS LTDA",
+    "certificadoId": "697ce598f88f9b9d04e98528"
+  },
+  {
+    "cnpj": "40806619000102",
+    "razaoSocial": "AUTO POSTO PRO TORK RIO PRETO LTDA",
+    "certificadoId": "697ce5a76d0d201dbe7407de"
+  },
+  {
+    "cnpj": "42744984000165",
+    "razaoSocial": "CONVENIENCIA CASTILHO LTDA",
+    "certificadoId": "697ce5cea88a68392706a1b4"
+  },
+  {
+    "cnpj": "43153039000151",
+    "razaoSocial": "POSTO DE COMBUSTIVEIS DIVISAO LTDA",
+    "certificadoId": "697ce5da34d2c9837f751c25"
+  },
+  {
+    "cnpj": "43288248000102",
+    "razaoSocial": "POSTO DE COMBUSTIVEIS CORREA 020 LTDA",
+    "certificadoId": "697ce5e5ece1055268efb49b"
+  },
+  {
+    "cnpj": "45376937000102",
+    "razaoSocial": "ALVIM INVESTIMENTOS E PARTICIPACOES S.A",
+    "certificadoId": "697ce5f8ece1055268efb7db"
+  },
+  {
+    "cnpj": "46309350000135",
+    "razaoSocial": "POSTO DE COMBUSTIVEIS RECANTO LTDA",
+    "certificadoId": "697ce5fefcefa012b7c978dc"
+  },
+  {
+    "cnpj": "46740616000108",
+    "razaoSocial": "TROIS PARTICIPACOES EMPRESARIAIS S.A",
+    "certificadoId": "697ce607356dc2e920983fca"
+  },
+  {
+    "cnpj": "47014641000169",
+    "razaoSocial": "ARQUEIRO ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce60ba88a68392706abdf"
+  },
+  {
+    "cnpj": "47397598000168",
+    "razaoSocial": "CAPITAO ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce610d42e8da0ff05c2af"
+  },
+  {
+    "cnpj": "47702635000102",
+    "razaoSocial": "TRR SAO ROQUE SIA LTDA",
+    "certificadoId": "697ce616ece1055268efbd7b"
+  },
+  {
+    "cnpj": "47994803000172",
+    "razaoSocial": "RAINHA ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce61fece1055268efbe6c"
+  },
+  {
+    "cnpj": "49149733000181",
+    "razaoSocial": "TRR SAO ROQUE PARA LTDA",
+    "certificadoId": "697ce625fcefa012b7c98713"
+  },
+  {
+    "cnpj": "50139813000135",
+    "razaoSocial": "POSTO SAO ROQUE SIDNEY LTDA",
+    "certificadoId": "697ce628356dc2e9209847ff"
+  },
+  {
+    "cnpj": "52160093000115",
+    "razaoSocial": "CONDESSA ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce660d42e8da0ff05d6e6"
+  },
+  {
+    "cnpj": "52193038000121",
+    "razaoSocial": "POP VAL COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce666fcefa012b7c99a27"
+  },
+  {
+    "cnpj": "52360597000189",
+    "razaoSocial": "IMPERATRIZ ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce66ffcefa012b7c99dd4"
+  },
+  {
+    "cnpj": "52802525000144",
+    "razaoSocial": "POSTO SAO ROQUE ORIZONA LTDA",
+    "certificadoId": "697ce67d34d2c9837f75433c"
+  },
+  {
+    "cnpj": "52995302000140",
+    "razaoSocial": "POSTO SAO ROQUE BR 080 LTDA",
+    "certificadoId": "697ce689d42e8da0ff05e7c5"
+  },
+  {
+    "cnpj": "53286109000101",
+    "razaoSocial": "POSTO SAO ROQUE RODOANEL DA BARRA LTDA",
+    "certificadoId": "697ce692fff555acd838384b"
+  },
+  {
+    "cnpj": "53551098000131",
+    "razaoSocial": "PEROLA PARTICIPACOES S.A",
+    "certificadoId": "697ce696a88a68392706db0b"
+  },
+  {
+    "cnpj": "53552304000128",
+    "razaoSocial": "RESIDENCIAL PEROLA DO PANTANAL SPE S A",
+    "certificadoId": "697ce69ed42e8da0ff05ed91"
+  },
+  {
+    "cnpj": "55031261000160",
+    "razaoSocial": "POSTO DE COMBUSTIVEIS CAMINHONEIRO 020 LTDA",
+    "certificadoId": "697ce6b7d42e8da0ff05f31d"
+  },
+  {
+    "cnpj": "55444312000186",
+    "razaoSocial": "LOJA DE CONVENIENCIA BR 080 LTDA",
+    "certificadoId": "697ce6c8d42e8da0ff05f507"
+  },
+  {
+    "cnpj": "55949831000104",
+    "razaoSocial": "DONZELA ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce6e3d42e8da0ff05f890"
+  },
+  {
+    "cnpj": "57386870000168",
+    "razaoSocial": "BLEST PARTICIPACOES LTDA",
+    "certificadoId": "697ce6e6275d7611945f4ae1"
+  },
+  {
+    "cnpj": "57710593000105",
+    "razaoSocial": "POSTO SAO ROQUE 29 LTDA",
+    "certificadoId": "697ce6f434d2c9837f755d5d"
+  },
+  {
+    "cnpj": "58114626000109",
+    "razaoSocial": "POSTO SAO ROQUE DA VENDINHA LTDA",
+    "certificadoId": "697ce6f7356dc2e920987435"
+  },
+  {
+    "cnpj": "58368644000117",
+    "razaoSocial": "LOJA DE CONVENIENCIA SAO ROQUE ROTA 050 LTDA",
+    "certificadoId": "697ce6fd4ca3b54f03f2f490"
+  },
+  {
+    "cnpj": "59306157000192",
+    "razaoSocial": "RESTAURANTE PRIMAVERA DO LESTE LTDA",
+    "certificadoId": "697ce7004ca3b54f03f2f4f6"
+  },
+  {
+    "cnpj": "59541903000122",
+    "razaoSocial": "POSTO SAO ROQUE TEREZOPOLIS LTDA",
+    "certificadoId": "697ce702f88f9b9d04e9d035"
+  },
+  {
+    "cnpj": "60158898000152",
+    "razaoSocial": "DAMA ALVIM COMERCIO DE ALIMENTOS LTDA",
+    "certificadoId": "697ce7054ca3b54f03f2f5e8"
+  },
+  {
+    "cnpj": "60718879000133",
+    "razaoSocial": "ACADEMIA JP LTDA",
+    "certificadoId": "697ce7104ca3b54f03f2f6dc"
+  },
+  {
+    "cnpj": "61175842000179",
+    "razaoSocial": "POSTO SAO ROQUE VILHENA CIDADE LTDA",
+    "certificadoId": "697ce713a88a68392706f183"
+  },
+  {
+    "cnpj": "61188487000172",
+    "razaoSocial": "POSTO SAO ROQUE VILHENA RODOVIA LTDA",
+    "certificadoId": "697ce717d42e8da0ff0600b3"
+  },
+  {
+    "cnpj": "62405047000192",
+    "razaoSocial": "KING ASSESSORIA E CONSULTORIA EMPRESARIAL LTDA",
+    "certificadoId": "697ce71a275d7611945f530e"
+  },
+  {
+    "cnpj": "63028397000140",
+    "razaoSocial": "POSTO SAO ROQUE TERMINAL LUZIMANGUES LTDA",
+    "certificadoId": "697ce71c34d2c9837f756202"
+  },
+  {
+    "cnpj": "63060253000170",
+    "razaoSocial": "POSTO SAO ROQUE SAPEZAL LTDA",
+    "certificadoId": "697ce71f275d7611945f5372"
+  }
+]

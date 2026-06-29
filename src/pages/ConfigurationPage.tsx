@@ -197,12 +197,28 @@ export default function ConfigurationPage() {
     const confirmDelete = async () => {
         if (!userToDelete) return;
         try {
-            await usersService.delete(userToDelete.id as any);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            const res = await fetch(`/api/admin/users/delete?id=${userToDelete.id}`, {
+                method: 'DELETE',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Erro ao excluir usuário');
+            }
+
             setShowDeleteModal(false);
             setUserToDelete(null);
             fetchUsers();
-        } catch (e) {
-            console.error(e);
+            alert(`Acesso do usuário ${userToDelete.name} foi revogado com sucesso.`);
+        } catch (err: any) {
+            console.error(err);
+            alert('Erro ao excluir usuário: ' + (err.message || 'Desconhecido'));
         }
     };
 
