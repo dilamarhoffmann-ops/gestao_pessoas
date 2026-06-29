@@ -90,12 +90,56 @@ if (!fs.existsSync(uploadDir)) {
 
 // Use memory storage for S3 uploads
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-const lawsuitUpload = multer({ storage: storage });
-const templateUpload = multer({ storage: storage });
+const multerConfig = {
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req: any, file: any, cb: any) => {
+    const forbidden = ['application/x-msdownload', 'application/exe', 'application/x-bat', 'application/x-sh'];
+    if (forbidden.includes(file.mimetype) || file.originalname.endsWith('.exe') || file.originalname.endsWith('.bat')) {
+      return cb(new Error('Tipo de arquivo não permitido'));
+    }
+    cb(null, true);
+  }
+};
+
+const upload = multer(multerConfig);
+const lawsuitUpload = multer(multerConfig);
+const templateUpload = multer(multerConfig);
 
 
 app.use('/uploads', express.static(uploadDir));
+
+// --- Auth Middleware ---
+const requireAuth = async (req: any, res: any, next: any) => {
+  // Allow legacy SQLite login/register without token
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/register') {
+    return next();
+  }
+  
+  // Only protect API routes
+  if (!req.path.startsWith('/api/')) {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Acesso negado: Token não fornecido.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Acesso negado: Token inválido ou expirado.' });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Erro de autenticação interno.' });
+  }
+};
+
+app.use(requireAuth);
 
 // --- API Routes ---
 
@@ -1077,7 +1121,8 @@ app.post('/api/admin/users/create', async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({ error: error.message });
+      console.error('Create user Supabase error:', error);
+      return res.status(400).json({ error: 'Falha ao criar usuário.' });
     }
 
     if (data.user) {
@@ -1109,7 +1154,8 @@ app.post('/api/admin/users/reset-password', async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({ error: error.message });
+      console.error('Reset password Supabase error:', error);
+      return res.status(400).json({ error: 'Falha ao redefinir a senha do usuário.' });
     }
 
     await supabaseAdmin.from('profiles').update({

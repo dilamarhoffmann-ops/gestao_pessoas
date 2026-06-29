@@ -383,9 +383,15 @@ export const candidatesService = {
     },
 
     async matchCandidate(id: string | number) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+
         const res = await fetch('/api/match-candidate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({ candidateId: id })
         });
         const data = await res.json();

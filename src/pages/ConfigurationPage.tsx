@@ -93,9 +93,15 @@ export default function ConfigurationPage() {
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
             const res = await fetch('/api/admin/users/create', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({
                     email: newUser.email,
                     password: newUser.password,
@@ -152,9 +158,15 @@ export default function ConfigurationPage() {
                     return;
                 }
 
+                const { data: sessionData } = await supabase.auth.getSession();
+                const token = sessionData.session?.access_token;
+
                 const res = await fetch('/api/admin/users/reset-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({
                         id: resettingUser.id,
                         newPassword: newResetPassword

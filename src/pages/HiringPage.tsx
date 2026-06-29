@@ -45,7 +45,7 @@ const COLUMNS = [
   },
   {
     id: 'interview1',
-    label: 'Análise',
+    label: 'Triagem',
     description: 'Triagem técnica e comportamental profunda.',
     color: 'bg-[#DCD4FF] border-[#CBB9FF]',
     icon: <UserSearch size={32} />
@@ -59,7 +59,7 @@ const COLUMNS = [
   },
   {
     id: 'offer',
-    label: 'Efetivado',
+    label: 'Contratado',
     description: 'Processo de proposta e engajamento final.',
     color: 'bg-[#FFE2D1] border-[#FFD2B8]',
     icon: <Handshake size={32} />
@@ -409,301 +409,160 @@ const CandidateCard: React.FC<{
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length === 0) return '??';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const getColorClass = (initials: string) => {
+    const colors = [
+      'bg-emerald-400', 'bg-purple-400', 'bg-blue-400', 'bg-rose-400',
+      'bg-amber-400', 'bg-indigo-400', 'bg-pink-400', 'bg-teal-400'
+    ];
+    let sum = 0;
+    for (let i = 0; i < initials.length; i++) {
+      sum += initials.charCodeAt(i);
+    }
+    return colors[sum % colors.length];
+  };
+
+  const getTimeAgo = (dateStr?: string) => {
+    if (!dateStr) return 'recém-adicionado';
+    const diffTime = new Date().getTime() - new Date(dateStr).getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffDays === 0) return 'hoje';
+    if (diffDays === 1) return 'há um dia';
+    if (diffDays < 30) return `há ${diffDays} dias`;
+    if (diffMonths === 1) return 'há 1 mês';
+    return `há ${diffMonths} meses`;
+  };
+
+  const initials = getInitials(candidate.name);
+  const avatarBg = getColorClass(initials);
+  const timeAgo = getTimeAgo(candidate.status_updated_at);
+
   return (
     <motion.div
       layoutId={`candidate-${candidate.id}`}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -2 }}
       className={cn(
-        "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 group transition-all hover:shadow-premium hover:border-primary/20",
+        "bg-[#f0f4f8] p-3 rounded-xl border border-slate-200 group transition-all hover:border-slate-300 relative flex flex-col gap-2 shadow-sm",
         candidate.status === 'archived' && "opacity-60 bg-slate-50"
       )}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
-            <h4 className="font-bold text-deep-navy group-hover:text-primary transition-colors">{candidate.name}</h4>
+      <div className="flex items-center gap-3">
+        {candidate.raw_data?.foto ? (
+          <img src={candidate.raw_data.foto} alt={candidate.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+        ) : (
+          <div className={`w-10 h-10 rounded-full text-white text-sm flex items-center justify-center font-bold shrink-0 ${avatarBg}`}>
+            {initials}
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-deep-navy/40 font-black uppercase tracking-widest">
-            <Briefcase size={10} />
-            {candidate.position}
-          </div>
-        </div>
-        <div className="flex gap-1">
-          {candidate.resume_url && (
-            <a
-              href={candidate.resume_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-8 h-8 rounded-xl bg-slate-50 text-deep-navy/40 hover:bg-slate-100 hover:text-primary flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-              title="Download Currículo"
-            >
-              <Download size={14} />
-            </a>
-          )}
-          <button
-            onClick={onEdit}
-            className="w-8 h-8 rounded-xl bg-slate-50 text-deep-navy/40 hover:bg-slate-100 hover:text-primary flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-            title="Editar Candidato"
-          >
-            <Search size={14} />
-          </button>
-          {candidate.status !== 'archived' && (
-            <button
-              onClick={onArchive}
-              className="w-8 h-8 rounded-xl bg-slate-50 text-deep-navy/40 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-              title="Arquivar Candidato"
-            >
-              <Archive size={14} />
-            </button>
-          )}
+        )}
+        <div className="flex flex-col overflow-hidden flex-1">
+          <span className="text-sm font-semibold text-slate-700 truncate">{candidate.name}</span>
+          <span className="text-xs text-slate-400">{timeAgo}</span>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 pb-4 border-b border-slate-50">
-        <div className="flex flex-col gap-1 text-[10px] text-deep-navy/40 font-bold uppercase tracking-widest">
-          <div className="flex items-center gap-2">
-            <Mail size={12} className="text-primary/40" />
-            <span className="truncate">{candidate.email}</span>
-          </div>
-          {candidate.status_updated_at && (
-            <div className="flex items-center gap-2 mt-1 lowercase first-letter:uppercase">
-              <TrendingUp size={10} className="text-primary/30" />
-              <span>Fase alterada em: {new Date(candidate.status_updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
+      {/* Hover Actions */}
+      <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#f0f4f8]/90 backdrop-blur-sm p-1 rounded-lg">
+        {candidate.resume_url && (
+          <a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-slate-400 hover:text-primary hover:bg-white rounded-md transition-colors" title="Download Currículo">
+            <Download size={14} />
+          </a>
+        )}
+        <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-primary hover:bg-white rounded-md transition-colors" title="Ver Detalhes">
+          <Search size={14} />
+        </button>
+        {candidate.status !== 'archived' && candidate.status !== 'hired' && (
+          <button onClick={onMove} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-white rounded-md transition-colors" title="Próxima Etapa">
+            <ArrowRight size={14} />
+          </button>
+        )}
+        {candidate.status !== 'archived' && (
+          <button onClick={onArchive} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-white rounded-md transition-colors" title="Arquivar">
+            <Archive size={14} />
+          </button>
+        )}
+        {candidate.status === 'archived' && (
+          <button onClick={() => onRestart?.()} className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-white rounded-md transition-colors" title="Retornar ao Banco">
+            <Users size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Badges for active tasks */}
+      {(candidate.match_score !== undefined || candidate.status === 'interview1' || candidate.status === 'offer' || candidate.archive_reason) && (
+        <div className="flex flex-col gap-1.5 mt-1">
+          {candidate.status === 'interview1' && candidate.match_score === undefined && (
+            <button onClick={onMatch} className="text-[10px] font-bold text-indigo-500 flex items-center justify-center gap-1 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors w-full">
+              <Scan size={12} /> Aderência IA
+            </button>
           )}
-          {candidate.status === 'archived' && candidate.archive_reason && (
-            <div className="flex flex-col gap-1 mt-2 text-[10px] text-rose-500 font-black uppercase tracking-widest bg-rose-50/50 p-2.5 rounded-xl border border-rose-100/50">
-              <div className="flex items-center gap-2">
-                <Archive size={12} />
-                <span>Motivo: {candidate.archive_reason}</span>
+          {candidate.match_score !== undefined && candidate.match_score !== null && (
+            candidate.match_score === -1 ? (
+              <div className="text-[10px] font-bold text-emerald-600 animate-pulse flex items-center gap-1">
+                <Scan size={12} /> Analisando IA...
               </div>
-              {candidate.termination_date && (
-                <div className="flex items-center gap-2">
-                  <Clock size={12} />
-                  <span>Desligamento: {new Date(candidate.termination_date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-md">
+                <CheckCircle size={12} /> Match: {candidate.match_score}%
+              </div>
+            )
           )}
-        </div>
-        <div className="mt-2 flex flex-col gap-2">
-          {candidate.status !== 'archived' && candidate.status !== 'applied' && (candidate.status === 'interview1' || (candidate.match_score !== undefined && candidate.match_score !== null)) && (
-            <div className="flex items-center justify-between w-full">
-              {candidate.match_score !== undefined && candidate.match_score !== null ? (
-                candidate.match_score === -1 ? (
-                  <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600 animate-pulse flex items-center gap-1">
-                    <Scan size={12} /> Analisando IA...
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 w-full">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center justify-center gap-1 bg-emerald-50 px-2 py-1.5 rounded-md w-full">
-                      <CheckCircle size={12} /> Match: {candidate.match_score}%
-                    </div>
-                    {candidate.disc_profile && (() => {
-                      const acronymMatch = candidate.disc_profile.match(/\b([DISC]{1,2})\b/);
-                      const acronym = acronymMatch ? acronymMatch[1] : candidate.disc_profile.replace(/[^DISC]/g, '').slice(0, 2);
-                      return (
-                        <div className="bg-sky-50 px-3 py-2 rounded-xl border border-sky-100 flex items-center gap-2">
-                          <FileText size={12} className="text-sky-600 shrink-0" />
-                          <span className="text-[10px] font-black text-sky-700 uppercase tracking-widest">DISC:</span>
-                          <span className="text-sm font-black text-sky-800 tracking-tight">{acronym || '—'}</span>
-                        </div>
-                      );
-                    })()}
-                    {candidate.status === 'interview1' && (
-                      <button onClick={handleCopyDiscLink} className={`text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1 px-2 py-1.5 rounded-md transition-colors w-full ${copied ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}>
-                        {copied ? <CheckCircle size={12} /> : <FileText size={12} />}
-                        {copied ? 'Link Copiado!' : 'Análise Comportamental (DISC)'}
-                      </button>
-                    )}
-                  </div>
-                )
-              ) : candidate.status === 'interview1' ? (
-                <div className="flex flex-col gap-2 w-full">
-                  <button onClick={onMatch} className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center justify-center gap-1 bg-indigo-50 px-2 py-1.5 rounded-md hover:bg-indigo-100 transition-colors w-full">
-                    <Scan size={12} /> Aderência IA
-                  </button>
-                  {candidate.disc_profile && (() => {
-                    const acronymMatch = candidate.disc_profile.match(/\b([DISC]{1,2})\b/);
-                    const acronym = acronymMatch ? acronymMatch[1] : candidate.disc_profile.replace(/[^DISC]/g, '').slice(0, 2);
-                    return (
-                      <div className="bg-sky-50 px-3 py-2 rounded-xl border border-sky-100 flex items-center gap-2">
-                        <FileText size={12} className="text-sky-600 shrink-0" />
-                        <span className="text-[10px] font-black text-sky-700 uppercase tracking-widest">DISC:</span>
-                        <span className="text-sm font-black text-sky-800 tracking-tight">{acronym || '—'}</span>
-                      </div>
-                    );
-                  })()}
-                  <button onClick={handleCopyDiscLink} className={`text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1 px-2 py-1.5 rounded-md transition-colors w-full ${copied ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}>
-                    {copied ? <CheckCircle size={12} /> : <FileText size={12} />}
-                    {copied ? 'Link Copiado!' : 'Análise Comportamental (DISC)'}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-          {candidate.status !== 'archived' && candidate.status !== 'applied' && candidate.status !== 'interview1' && !(candidate.match_score !== undefined && candidate.match_score !== null) && candidate.disc_profile && (() => {
+          {candidate.disc_profile && (() => {
             const acronymMatch = candidate.disc_profile.match(/\b([DISC]{1,2})\b/);
             const acronym = acronymMatch ? acronymMatch[1] : candidate.disc_profile.replace(/[^DISC]/g, '').slice(0, 2);
             return (
-              <div className="bg-sky-50 px-3 py-2 rounded-xl border border-sky-100 flex items-center gap-2">
-                <FileText size={12} className="text-sky-600 shrink-0" />
-                <span className="text-[10px] font-black text-sky-700 uppercase tracking-widest">DISC:</span>
-                <span className="text-sm font-black text-sky-800 tracking-tight">{acronym || '—'}</span>
-              </div>
+               <div className="text-[10px] font-bold text-sky-700 flex items-center gap-1 bg-sky-50 px-2 py-1 rounded-md">
+                 <FileText size={12} /> DISC: {acronym || '—'}
+               </div>
             );
           })()}
-        </div>
-      </div>
-
-      {candidate.status === 'offer' && (
-        candidate.docs_delivered && candidate.vt_delivered ? (
-          <div className="mt-4 w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-            <CheckCircle size={14} /> Contratado
-          </div>
-        ) : (
-          <div className="mt-4 w-full flex flex-col gap-2">
-            <div className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
-              <Clock size={14} /> Pendente
+          {candidate.status === 'offer' && (
+            <div className="flex gap-1 text-[9px] font-bold">
+              {candidate.docs_delivered && candidate.vt_delivered ? (
+                <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md w-full text-center">Contratado</span>
+              ) : (
+                <>
+                  <span className={cn("px-2 py-1 rounded-md w-full text-center", candidate.docs_delivered ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}>Docs</span>
+                  <span className={cn("px-2 py-1 rounded-md w-full text-center", candidate.vt_delivered ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}>VT</span>
+                </>
+              )}
             </div>
-            <div className="flex gap-2 text-[9px] font-bold text-deep-navy/40 uppercase tracking-widest justify-center">
-              {!candidate.docs_delivered && <span className="bg-slate-50 px-2 py-1 rounded-md">Docs</span>}
-              {!candidate.vt_delivered && <span className="bg-slate-50 px-2 py-1 rounded-md">VT</span>}
-            </div>
-          </div>
-        )
-      )}
-
-      {candidate.status === 'hired' && (
-        <div className="mt-4 w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-          <CheckCircle size={14} /> Em Onboarding
-        </div>
-      )}
-
-      {candidate.status === 'archived' && (
-        <div className="mt-4 space-y-3">
-          {candidate.archive_reason && !candidate.archive_reason.startsWith('Outros') && candidate.termination_date && (() => {
-            const termDate = new Date(candidate.termination_date + 'T12:00:00');
-            const paymentDeadline = new Date(termDate);
-            paymentDeadline.setDate(termDate.getDate() + 10);
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            paymentDeadline.setHours(0, 0, 0, 0);
-
-            const diffTime = paymentDeadline.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays >= 0) {
-              return (
-                <div className={cn(
-                  "p-3 rounded-xl border flex flex-col gap-1 items-center animate-pulse shadow-sm",
-                  diffDays <= 2 ? "bg-red-50 border-red-200 text-red-600" : "bg-amber-50 border-amber-200 text-amber-600"
-                )}>
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Prazo de Pagamento</span>
-                  </div>
-                  <p className="text-[9px] font-bold text-center">
-                    Restam <strong>{diffDays} dias</strong> para o acerto <br />(Limite: {paymentDeadline.toLocaleDateString('pt-BR')})
-                  </p>
-                </div>
-              );
-            } else {
-              return (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 flex flex-col gap-1 items-center opacity-70">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Prazo Encerrado</span>
-                  </div>
-                  <p className="text-[9px] font-bold text-center lowercase first-letter:uppercase">
-                    O prazo de 10 dias expirou em {paymentDeadline.toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              );
-            }
-          })()}
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-slate-100 text-slate-500 border border-slate-200">
-            <Archive size={14} /> Arquivado
-          </div>
-          <button
-            onClick={() => onRestart?.()}
-            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100 active:scale-95 border border-indigo-100"
-          >
-            <Users size={14} /> Retornar ao Banco de Talentos
-          </button>
-        </div>
-      )}
-
-      {candidate.status !== 'hired' && candidate.status !== 'archived' && (
-        <div className="flex flex-col gap-2 mt-4">
-          <button
-            onClick={onMove}
-            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-slate-50 text-deep-navy/60 hover:bg-primary hover:text-white hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
-          >
-            Próxima Etapa <ChevronRight size={14} />
-          </button>
-
-          {candidate.status === 'applied' && (
-            <button
-              onClick={onArchive}
-              className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white transition-all active:scale-95 border border-orange-100/50"
-            >
-              <Trash2 size={14} /> Excluir do Fluxo
-            </button>
+          )}
+          {candidate.status === 'archived' && candidate.archive_reason && (
+             <div className="text-[9px] text-rose-500 font-bold bg-rose-50 p-1.5 rounded-md truncate">
+               {candidate.archive_reason}
+             </div>
           )}
         </div>
       )}
 
+      {/* Contract Alert */}
       {candidate.status === 'offer' && candidate.contract_start_date && !candidate.contract_alert_acknowledged && (() => {
         const signatureDate = new Date(candidate.contract_start_date + 'T12:00:00');
         const today = new Date();
         const diffTime = today.getTime() - signatureDate.getTime();
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        // Alert starts at 83 days (one week before 90)
         if (diffDays >= 83) {
           return (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 p-4 rounded-xl bg-red-50 border border-red-300 space-y-3 shadow-sm shadow-red-100"
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                await candidatesService.update(candidate.id, { contract_alert_acknowledged: true });
+                onUpdate?.();
+              }}
+              className="mt-1 w-full py-1.5 bg-red-100 hover:bg-red-200 text-red-800 text-[9px] font-black uppercase rounded-lg transition-all flex items-center justify-center gap-1"
             >
-              <div className="flex items-center gap-2 text-red-600">
-                <Clock size={16} className="shrink-0 animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-widest leading-tight">Alerta de Experiência (90 dias)</p>
-              </div>
-              <p className="text-[10px] text-red-700 font-bold leading-relaxed lowercase first-letter:uppercase">O contrato de experiência completará 90 dias em breve (Dia {diffDays}). Verifique a efetivação definitiva.</p>
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  const formData = new FormData();
-                  // No backend atualizado, se enviarmos apenas o ID e o campo de ciência, 
-                  // os outros campos devem ser preservados ou o backend deve lidar com isso.
-                  // Para garantir compatibilidade com o PUT atual que espera os campos base:
-                  formData.set('name', candidate.name);
-                  formData.set('position', candidate.position);
-                  formData.set('email', candidate.email);
-                  formData.set('contract_alert_acknowledged', '1');
-
-                  // Preservar campos existentes para evitar que o PUT os apague
-                  if (candidate.contract_start_date) formData.set('contract_start_date', candidate.contract_start_date);
-                  if (candidate.onboarding_date) formData.set('onboarding_date', candidate.onboarding_date);
-
-                  await candidatesService.update(candidate.id, {
-                    contract_alert_acknowledged: true
-                  });
-                  onUpdate?.(); // Only reload the list
-                }}
-                className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-800 text-[9px] font-black uppercase tracking-[0.15em] rounded-lg transition-all"
-              >
-                Dar Ciência do Prazo
-              </button>
-            </motion.div>
+              <Clock size={10} className="animate-pulse" /> Fim de Experiência
+            </button>
           );
         }
         return null;
@@ -1821,14 +1680,25 @@ function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: bo
     setIsSyncing(true);
     try {
       // 1. Listar vagas via proxy
-      const res = await fetch('/api/empregare/proxy?endpoint=vaga/listar&quantidade=50');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      const res = await fetch('/api/empregare/proxy?endpoint=vaga/listar&quantidade=50', {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
       const data = await res.json();
       if (!data.vagas) throw new Error('Nenhuma vaga retornada pela API.');
 
       let count = 0;
       for (const v of data.vagas) {
         // 2. Obter detalhes para pegar salário e setores
-        const dRes = await fetch(`/api/empregare/proxy?endpoint=vaga/detalhes/${v.ID}`);
+        const dRes = await fetch(`/api/empregare/proxy?endpoint=vaga/detalhes/${v.ID}`, {
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
         const dData = await dRes.json();
         const details = dData.vaga || {};
 
@@ -2068,7 +1938,12 @@ function JobOpeningsModal({ isOpen, onClose, onCreated, onDelete }: { isOpen: bo
                         </button>
                       </div>
                     )}
-                    {!jobFetchError && jobOpenings.map(job => (
+                    {!jobFetchError && [...jobOpenings].sort((a, b) => {
+                      if (a.created_at && b.created_at) {
+                        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                      }
+                      return (b.id || 0) - (a.id || 0);
+                    }).map(job => (
                       <div key={job.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 hover:shadow-premium hover:border-primary/20 transition-all relative group">
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => handleEditJob(job)} className="p-2 bg-slate-50 text-deep-navy/40 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Editar Vaga">
@@ -2603,11 +2478,14 @@ function EmpregareImportModal({ isOpen, onClose, onImported }: { isOpen: boolean
     setStep('loading_vagas');
     setErrorMsg('');
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/empregare-proxy`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ url: '/vaga/listar?quantidade=50' })
       });
@@ -2635,6 +2513,9 @@ function EmpregareImportModal({ isOpen, onClose, onImported }: { isOpen: boolean
     setErrorMsg('');
     const all: EmpregareImportCandidate[] = [];
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       const { data: dbCands } = await supabase.from('candidates').select('raw_data');
       const knownCPFs = new Set(
         (dbCands || [])
@@ -2647,7 +2528,7 @@ function EmpregareImportModal({ isOpen, onClose, onImported }: { isOpen: boolean
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ url: `/Pessoas?pagina=1&itensPorPagina=15&idVaga=${vaga.id}` })
         });

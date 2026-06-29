@@ -1,6 +1,8 @@
 // Supabase Edge Function: empregare-proxy
 // Proxies requests to the Empregare Corporate API to avoid CORS issues.
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 const EMPREGARE_BASE = 'https://corporate.empregare.com/api';
 
 const corsHeaders = {
@@ -16,6 +18,29 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
+        // --- 1. JWT Validation (Global Security Pattern) ---
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+            return new Response(JSON.stringify({ error: 'Não autorizado: Token não providenciado' }), { 
+                status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            });
+        }
+
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+        
+        if (authError || !user) {
+            console.error('[empregare-proxy] Auth error:', authError);
+            return new Response(JSON.stringify({ error: 'Não autorizado: Token inválido ou expirado' }), { 
+                status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            });
+        }
+        // --------------------------------------------------
+
         const EMPREGARE_TOKEN = Deno.env.get('EMPREGARE_TOKEN');
         const EMPREGARE_EMPRESA_ID = Deno.env.get('EMPREGARE_EMPRESA_ID');
 
@@ -100,9 +125,12 @@ Deno.serve(async (req: Request) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
-        console.error('[empregare-proxy] Error:', err.message);
+        // Log the actual sensitive error internally
+        console.error('[empregare-proxy] Detailed Error:', err.message || err, err.stack);
+        
+        // Return a generic, sanitized error response to prevent Information Disclosure
         return new Response(
-            JSON.stringify({ error: err.message ?? 'Erro interno na Edge Function' }),
+            JSON.stringify({ error: 'Ocorreu um erro interno ao processar a requisição no proxy corporativo.' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }

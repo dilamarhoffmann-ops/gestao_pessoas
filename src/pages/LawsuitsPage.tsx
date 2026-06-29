@@ -5,12 +5,36 @@ import {
   Plus, Gavel, Calendar, AlertTriangle, FileText, DollarSign, MapPin,
   Scale, Clock, ChevronDown, ChevronUp, Edit3, X, Search, Filter,
   CheckCircle, Check, Trash2, AlertOctagon, FileCheck, Layers,
-  Upload, Download, FileJson, Trash
+  Upload, Download, FileJson, Trash, RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { lawsuitsService } from '../lib/supabase-service';
+import { escavadorService } from '../lib/escavador-service';
+import { ProcessTimelineModal } from '../components/ProcessTimelineModal';
+
+function isAbbreviation(abbr: string, full: string) {
+  if (!abbr || !full) return false;
+  const cleanAbbr = abbr.trim();
+  const cleanFull = full.trim();
+  
+  if (!cleanAbbr.includes('.')) {
+    return cleanFull.toLowerCase().includes(cleanAbbr.toLowerCase());
+  }
+  
+  const abbrParts = cleanAbbr.replace(/\./g, ' ').split(' ').filter(Boolean);
+  const fullParts = cleanFull.split(' ').filter(Boolean);
+  
+  if (abbrParts.length > fullParts.length) return false;
+  
+  for (let i = 0; i < abbrParts.length; i++) {
+    if (!fullParts[i].toLowerCase().startsWith(abbrParts[i].toLowerCase())) {
+      return false;
+    }
+  }
+  return true;
+}
 
 type Lawsuit = {
   id: string | number;
@@ -56,9 +80,15 @@ export default function LawsuitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLawsuit, setSelectedLawsuit] = useState<Lawsuit | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string | number; name: string } | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [deadlineFilter, setDeadlineFilter] = useState<'all' | '7d' | '30d' | 'overdue' | 'none'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [isTribunaisModalOpen, setIsTribunaisModalOpen] = useState(false);
+  const [prefilledData, setPrefilledData] = useState<any>(null);
+  const [selectedTimelineLawsuit, setSelectedTimelineLawsuit] = useState<{ id: string | number, caseNumber: string } | null>(null);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
   useEffect(() => {
     fetchLawsuits();
@@ -100,6 +130,150 @@ export default function LawsuitsPage() {
     setSelectedLawsuit(null);
   };
 
+  const handleRefreshLawsuit = async (lawsuit: Lawsuit, silent = false) => {
+    if (!lawsuit.case_number) {
+      if (!silent) alert("O processo precisa de um Número CNJ para buscar atualizações.");
+      return false;
+    }
+    try {
+      const data = await escavadorService.getProcessoByCnj(lawsuit.case_number);
+      const proc = data.items?.[0] || data.item || data;
+      
+      if (!proc || !proc.numero_cnj) {
+         throw new Error("Processo não encontrado ou indisponível na API do Escavador.");
+      }
+
+      const updateData: Partial<Lawsuit> = {};
+      
+      // Attempt to get the latest movement
+      const movs = proc.fontes?.[0]?.movimentacoes;
+      if (Array.isArray(movs) && movs.length > 0) {
+         updateData.last_progress = movs[0].conteudo || movs[0].tipo || '';
+      } else if (proc.data_ultima_movimentacao) {
+         updateData.last_progress = `Movimentação recente registrada em: ${proc.data_ultima_movimentacao.split('T')[0]}`;
+      }
+
+      const valorCausaStr = proc.fontes?.[0]?.capa?.valor_causa?.valor;
+      if (valorCausaStr !== undefined && valorCausaStr !== null) {
+        const parsed = parseFloat(String(valorCausaStr));
+        if (!isNaN(parsed) && (!lawsuit.cause_value || lawsuit.cause_value !== parsed)) {
+          updateData.cause_value = parsed;
+        }
+      }
+
+      // Extract parties looking across all fontes to find the most complete (longest) names
+      let baseActive = proc.titulo_polo_ativo || '';
+      let basePassive = proc.titulo_polo_passivo || '';
+
+      const allParts: any[] = [];
+      (proc.fontes || []).forEach((f: any) => {
+        if (f.envolvidos) allParts.push(...f.envolvidos);
+      });
+
+      if (!baseActive || !basePassive) {
+        const tribunalFonte = (proc.fontes || []).find((f: any) => f.tipo === 'TRIBUNAL' && f.grau === 1);
+        if (tribunalFonte && tribunalFonte.envolvidos) {
+          const at = tribunalFonte.envolvidos.find((p: any) => p.polo === 'ATIVO')?.nome;
+          const pa = tribunalFonte.envolvidos.find((p: any) => p.polo === 'PASSIVO')?.nome;
+          if (at && !baseActive) baseActive = at;
+          if (pa && !basePassive) basePassive = pa;
+        }
+      }
+
+      let extractedClaimant = baseActive;
+      let extractedRespondent = basePassive;
+
+      allParts.forEach((p: any) => {
+        const nome = p.nome;
+        if (!nome || p.tipo_normalizado === 'Advogado') return;
+        
+        if (isAbbreviation(baseActive, nome) && nome.length > extractedClaimant.length) {
+          extractedClaimant = nome;
+        }
+        if (isAbbreviation(basePassive, nome) && nome.length > extractedRespondent.length) {
+          extractedRespondent = nome;
+        }
+      });
+
+      // Force update if names are identical, or if they appear swapped/incorrect based on the API extraction
+      const isClaimantActuallyRespondent = extractedRespondent && lawsuit.claimant_name && 
+        (lawsuit.claimant_name === extractedRespondent || isAbbreviation(lawsuit.claimant_name, extractedRespondent) || isAbbreviation(extractedRespondent, lawsuit.claimant_name));
+        
+      const isRespondentActuallyClaimant = extractedClaimant && lawsuit.respondent_name && 
+        (lawsuit.respondent_name === extractedClaimant || isAbbreviation(lawsuit.respondent_name, extractedClaimant) || isAbbreviation(extractedClaimant, lawsuit.respondent_name));
+        
+      const forceUpdate = lawsuit.claimant_name === lawsuit.respondent_name || 
+                          isClaimantActuallyRespondent || 
+                          isRespondentActuallyClaimant;
+
+      // Update names if they are currently missing, default values, or if we found a more complete (longer) name
+      const isMissingClaimant = !lawsuit.claimant_name || lawsuit.claimant_name === 'Reclamante não identificado';
+      if (extractedClaimant && (isMissingClaimant || forceUpdate || (lawsuit.claimant_name && extractedClaimant.length > lawsuit.claimant_name.length))) {
+        updateData.claimant_name = extractedClaimant;
+      }
+
+      const isMissingRespondent = !lawsuit.respondent_name || lawsuit.respondent_name === 'Empresa não identificada';
+      if (extractedRespondent && (isMissingRespondent || forceUpdate || (lawsuit.respondent_name && extractedRespondent.length > lawsuit.respondent_name.length))) {
+        updateData.respondent_name = extractedRespondent;
+      }
+
+      const subjectsArr = proc.fontes?.[0]?.assuntos;
+      const subjects = Array.isArray(subjectsArr) ? subjectsArr.map((a: any) => a.nome).join(', ') : 'Não informado';
+
+      const allPartiesList = allParts.map(p => `${p.nome} (${p.tipo_normalizado || p.tipo || 'Parte'})`)
+        .filter((v, i, a) => a.indexOf(v) === i).join('; ');
+
+      const dossieCompleto = `Assuntos: ${subjects}\nEnvolvidos: ${allPartiesList}`;
+      
+      // Update main_claims to ensure the full dossie is present
+      if (!lawsuit.main_claims || !lawsuit.main_claims.includes('Envolvidos:')) {
+         updateData.main_claims = dossieCompleto;
+      } else if (lawsuit.main_claims && lawsuit.main_claims.includes('[ATENÇÃO')) {
+         // Keep the attention tag if it's there
+         const tag = lawsuit.main_claims.split('\n')[0];
+         updateData.main_claims = `${tag}\n${dossieCompleto}`;
+      } else {
+         updateData.main_claims = dossieCompleto;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await lawsuitsService.update(lawsuit.id, updateData);
+        if (!silent) {
+          await fetchLawsuits();
+          setSuccessMessage("Processo atualizado com sucesso!");
+        }
+        return true;
+      } else {
+        if (!silent) setSuccessMessage("O processo já está atualizado. Nenhuma nova informação foi encontrada.");
+        return false;
+      }
+      
+    } catch (err: any) {
+      console.error("Refresh error:", err);
+      if (!silent) alert(`Falha ao buscar atualizações: ${err.message}`);
+      return false;
+    }
+  };
+
+  const handleRefreshAllLawsuits = async () => {
+    if (isRefreshingAll) return;
+    setIsRefreshingAll(true);
+    let updatedCount = 0;
+    
+    try {
+      for (const lawsuit of lawsuits) {
+        const updated = await handleRefreshLawsuit(lawsuit, true);
+        if (updated) updatedCount++;
+        // Pequeno atraso para evitar rate-limit da API
+        await new Promise(r => setTimeout(r, 500));
+      }
+      await fetchLawsuits();
+      setSuccessMessage(`Atualização concluída! ${updatedCount} processos foram atualizados.`);
+    } finally {
+      setIsRefreshingAll(false);
+    }
+  };
+
   const getNextDeadline = (l: Lawsuit) => {
     const ds = [l.initial_hearing_date, l.instruction_hearing_date, l.defense_deadline, l.reply_deadline, l.appeal_deadline]
       .filter(Boolean).map(d => new Date(d!));
@@ -135,8 +309,9 @@ export default function LawsuitsPage() {
   const urgentCount = lawsuits.filter(l => { const nd = getNextDeadline(l); return nd && nd <= in7; }).length;
 
   return (
-    <>
-      <div className="flex-1 overflow-y-auto p-10 space-y-10 animate-slide-up pb-20">
+    <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-hidden">
+      {/* Header Fixo */}
+      <div className="z-50 px-10 pt-10 pb-6 bg-[#f8fafc] border-b border-slate-200 flex flex-col gap-6 shrink-0 relative shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-slate-100 transition-transform hover:rotate-3">
@@ -148,6 +323,20 @@ export default function LawsuitsPage() {
             </div>
           </div>
           <div className="flex gap-4 w-full md:w-auto">
+            <button
+              onClick={handleRefreshAllLawsuits}
+              disabled={isRefreshingAll}
+              className={cn(
+                "flex-1 md:flex-none px-6 py-3.5 border rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm",
+                isRefreshingAll
+                  ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                  : "bg-white border-slate-100 text-deep-navy hover:bg-slate-50"
+              )}
+            >
+              <RefreshCw size={18} className={cn(isRefreshingAll ? "animate-spin text-slate-400" : "text-primary")} />
+              {isRefreshingAll ? 'Atualizando...' : 'Atualizar Todos'}
+            </button>
+
             <div className="relative">
               <button
                 onClick={() => setFilterOpen(prev => !prev)}
@@ -199,12 +388,39 @@ export default function LawsuitsPage() {
               </AnimatePresence>
             </div>
 
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex-1 md:flex-none btn-premium shadow-xl shadow-primary/20"
-            >
-              <Plus size={20} /> Adicionar Processo
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setAddMenuOpen(prev => !prev)}
+                className="flex-1 md:flex-none btn-premium shadow-xl shadow-primary/20 flex items-center gap-2"
+              >
+                <Plus size={20} /> Adicionar Processo
+              </button>
+
+              <AnimatePresence>
+                {addMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-100 shadow-xl rounded-2xl overflow-hidden z-50"
+                  >
+                    <button
+                      onClick={() => { setAddMenuOpen(false); setPrefilledData(null); setIsModalOpen(true); }}
+                      className="w-full text-left px-5 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors text-deep-navy/60 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <Edit3 size={14}/> Inserção Manual
+                    </button>
+                    <button
+                      onClick={() => { setAddMenuOpen(false); setIsTribunaisModalOpen(true); }}
+                      className="w-full text-left px-5 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors text-primary hover:bg-slate-50 flex items-center gap-2 border-t border-slate-50"
+                    >
+                      <Search size={14}/> Buscar nos Tribunais
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
@@ -218,7 +434,10 @@ export default function LawsuitsPage() {
             placeholder="Pesquise por número do processo, nome do reclamante, vara ou tribunal..."
           />
         </div>
+      </div>
 
+      {/* Conteúdo Rolável */}
+      <div className="flex-1 overflow-y-auto p-10 pt-6 animate-slide-up pb-20 flex flex-col gap-10 relative">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white px-8 py-4 rounded-[2rem] border border-slate-50 flex items-center justify-between group hover:shadow-premium transition-all">
             <div className="flex items-center gap-5">
@@ -287,6 +506,8 @@ export default function LawsuitsPage() {
                     lawsuit={lawsuit}
                     onEdit={() => handleEdit(lawsuit)}
                     onDelete={() => handleDeleteRequest(lawsuit.id, lawsuit.claimant_name)}
+                    onRefresh={() => handleRefreshLawsuit(lawsuit)}
+                    onViewTimeline={() => setSelectedTimelineLawsuit({ id: lawsuit.id, caseNumber: lawsuit.case_number })}
                   />
                 ))}
               </div>
@@ -311,9 +532,43 @@ export default function LawsuitsPage() {
             onClose={handleCloseModal}
             onCreated={fetchLawsuits}
             initialData={selectedLawsuit}
+            prefilledData={prefilledData}
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {isTribunaisModalOpen && (
+          <TribunaisSearchModal 
+            onClose={() => setIsTribunaisModalOpen(false)}
+            onSuccess={async (dataArray) => {
+              setIsTribunaisModalOpen(false);
+              try {
+                for (const data of dataArray) {
+                  await lawsuitsService.create(data);
+                }
+                fetchLawsuits();
+              } catch (err) {
+                console.error("Import error:", err);
+                alert('Erro ao importar processos.');
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {successMessage && (
+          <SuccessModal message={successMessage} onClose={() => setSuccessMessage(null)} />
+        )}
+      </AnimatePresence>
+
+      <ProcessTimelineModal
+        isOpen={!!selectedTimelineLawsuit}
+        onClose={() => setSelectedTimelineLawsuit(null)}
+        processoId={selectedTimelineLawsuit?.id || ''}
+        caseNumber={selectedTimelineLawsuit?.caseNumber || ''}
+      />
 
       <AnimatePresence>
         {deleteTarget && (
@@ -324,7 +579,7 @@ export default function LawsuitsPage() {
           />
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }
 
@@ -387,8 +642,34 @@ function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onCon
   );
 }
 
-const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: () => void }> = ({ lawsuit, onEdit, onDelete }) => {
+
+
+const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: () => void; onRefresh: () => Promise<void>; onViewTimeline: () => void }> = ({ lawsuit, onEdit, onDelete, onRefresh, onViewTimeline }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Calcula a última atualização para o alerta de defasagem (> 30 dias)
+  const getLastUpdateDate = () => {
+    if (!lawsuit.last_progress) return null;
+    const match = lawsuit.last_progress.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (match) {
+      return new Date(`${match[3]}-${match[2]}-${match[1]}T00:00:00`);
+    }
+    return null;
+  };
+  const lastUpdate = getLastUpdateDate();
+  const isOutdated = lastUpdate ? new Date().getTime() - lastUpdate.getTime() > 30 * 24 * 60 * 60 * 1000 : false;
+
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const deadlines = [
     lawsuit.initial_hearing_date,
@@ -436,11 +717,20 @@ const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: ()
                 )}>
                   Risco {lawsuit.risk_provision === 'Probable' ? 'Provável' : lawsuit.risk_provision === 'Possible' ? 'Possível' : 'Remoto'}
                 </span>
+                {isOutdated && (
+                  <span className="px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-tight border bg-amber-50 text-amber-600 border-amber-200 flex items-center gap-1" title="Última movimentação registrada tem mais de 30 dias.">
+                    <AlertTriangle size={10} /> Desatualizado
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-1">
                 <h4 className="text-lg font-black text-deep-navy tracking-tight uppercase group-hover:text-primary transition-colors">{lawsuit.claimant_name}</h4>
                 <div className="h-px flex-1 bg-slate-100" />
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                 <span className="text-[9px] font-black uppercase tracking-widest text-deep-navy/40">Empresa (Réu):</span>
+                 <span className="text-[11px] font-bold text-accent-orange uppercase">{lawsuit.respondent_name || 'Empresa não identificada'}</span>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-4">
@@ -579,24 +869,39 @@ const LawsuitCard: React.FC<{ lawsuit: Lawsuit; onEdit: () => void; onDelete: ()
               </div>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end mt-4">
+              <button
+                onClick={(e) => { e.stopPropagation(); onViewTimeline(); }}
+                className="flex-1 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest py-3 px-4 hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 flex items-center justify-center gap-2 rounded-lg"
+              >
+                <Clock size={14} /> Ver Histórico
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                className="flex-1 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest py-3 px-4 hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 flex items-center justify-center gap-2"
+                className="flex-1 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest py-3 px-4 hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 flex items-center justify-center gap-2 rounded-lg"
               >
                 <Edit3 size={14} /> Detalhes
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="bg-white border border-slate-200 text-deep-navy/40 hover:text-accent-orange hover:border-accent-orange transition-all duration-300 p-3"
+                className="bg-white border border-slate-200 text-deep-navy/40 hover:text-red-500 hover:border-red-500 transition-all duration-300 p-3 rounded-lg"
                 title="Excluir Registro"
               >
                 <Trash2 size={16} />
               </button>
               <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={cn("bg-white border border-slate-200 transition-all duration-300 p-3 flex items-center gap-2 rounded-lg", isRefreshing ? "text-primary border-primary bg-primary/5" : "text-deep-navy/40 hover:text-emerald-500 hover:border-emerald-500")}
+                title="Buscar Atualizações (Escavador)"
+              >
+                <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+                <span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Forçar Atualização</span>
+              </button>
+              <button
                 onClick={() => setExpanded(!expanded)}
                 className={cn(
-                  "px-4 border transition-all duration-300",
+                  "px-4 border transition-all duration-300 rounded-lg",
                   expanded ? "bg-deep-navy text-white border-deep-navy" : "bg-white text-deep-navy/40 border-slate-200 hover:text-deep-navy hover:border-slate-300"
                 )}
               >
@@ -709,11 +1014,12 @@ function formatCurrency(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 }
 
-function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: boolean; onClose: () => void; onCreated: () => void; initialData: Lawsuit | null }) {
+function NewLawsuitModal({ isOpen, onClose, onCreated, initialData, prefilledData }: { isOpen: boolean; onClose: () => void; onCreated: () => void; initialData: Lawsuit | null; prefilledData?: any }) {
   const [activeTab, setActiveTab] = useState('identificacao');
-  const [localData, setLocalData] = useState<any>(initialData || {
+  const [localData, setLocalData] = useState<any>(initialData || prefilledData || {
     case_number: '',
     claimant_name: '',
+    respondent_name: '',
     tribunal: '',
     labor_court: '',
     admission_date: '',
@@ -788,7 +1094,7 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
     });
 
     try {
-      if (initialData) {
+      if (initialData && initialData.id) {
         await lawsuitsService.update(initialData.id, submissionData);
       } else {
         await lawsuitsService.create(submissionData);
@@ -805,7 +1111,7 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
     { id: 'identificacao', label: 'Cadastro Base' },
     { id: 'conhecimento', label: '1. Mérito' },
     { id: 'recursal', label: '2. Instância' },
-    { id: 'execucao', label: '3. Ativos' },
+    { id: 'execucao', label: 'EXECUÇÃO' },
     { id: 'financeiro', label: 'Auditoria' },
     ...(initialData ? [{ id: 'documentos', label: 'Documentos' }] : []),
   ];
@@ -890,6 +1196,7 @@ function NewLawsuitModal({ isOpen, onClose, onCreated, initialData }: { isOpen: 
                       <div className="space-y-8">
                         <Input id="case_number" label="Número do Processo (CNJ)" name="case_number" placeholder="0000000-00.0000.0.00.0000" required value={localData.case_number} onChange={handleChange} highlightIcon={<Scale size={16} />} />
                         <Input id="claimant_name" label="Nome do Reclamante" name="claimant_name" placeholder="Nome Completo do Colaborador" required value={localData.claimant_name} onChange={handleChange} />
+                        <Input id="respondent_name" label="Empresa (Réu)" name="respondent_name" placeholder="Nome da Empresa Reclamada" required value={localData.respondent_name} onChange={handleChange} />
                         <div className="grid grid-cols-2 gap-8">
                           <Input id="labor_court" label="Vara do Trabalho" name="labor_court" placeholder="Ex: 12ª Vara de SP" value={localData.labor_court} onChange={handleChange} />
                           <Input id="tribunal" label="Tribunal" name="tribunal" placeholder="Ex: TRT-2" value={localData.tribunal} onChange={handleChange} />
@@ -1254,5 +1561,409 @@ function Input({ label, name, type = "text", placeholder, required, value, onCha
         className="premium-input bg-white"
       />
     </div>
+  );
+}
+
+function TribunaisSearchModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (data: any[]) => void }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState<'documento' | 'nome'>('documento');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [saldo, setSaldo] = useState<{ quantidade_creditos?: number, saldo?: number, saldo_descricao?: string } | null>(null);
+  const [custoUltimaConsulta, setCustoUltimaConsulta] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+
+  useEffect(() => {
+    fetchSaldo();
+  }, []);
+
+  const fetchSaldo = async () => {
+    try {
+      const data = await escavadorService.getSaldo();
+      setSaldo(data);
+      return data;
+    } catch (err) {
+      console.error('Erro ao buscar saldo:', err);
+      return null;
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResults([]);
+    setCustoUltimaConsulta(null);
+
+    const saldoAntes = saldo?.quantidade_creditos !== undefined ? saldo.quantidade_creditos : null;
+
+    try {
+      let data;
+      if (searchType === 'documento') {
+        data = await escavadorService.getProcessosByCpfCnpj(searchTerm);
+      } else {
+        data = await escavadorService.getProcessosByNome(searchTerm);
+      }
+
+      if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
+        setResults(data.items);
+        setSelectedIds(new Set());
+      } else {
+        setError('Nenhum processo encontrado para este documento.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message.includes('402')) {
+        setError('Saldo insuficiente ou plano não cobre esta requisição no Escavador.');
+      } else {
+        setError(err.message || 'Erro ao buscar processos no Escavador.');
+      }
+    } finally {
+      const novoSaldo = await fetchSaldo();
+      if (novoSaldo && saldoAntes !== null && novoSaldo.quantidade_creditos !== undefined) {
+        const custo = saldoAntes - novoSaldo.quantidade_creditos;
+        if (custo > 0) setCustoUltimaConsulta(custo);
+      }
+      setLoading(false);
+    }
+  };
+
+  const toggleSelect = (procId: number | string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(procId)) newSet.delete(procId);
+      else newSet.add(procId);
+      return newSet;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === results.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(results.map((p, i) => p.id || i)));
+    }
+  };
+
+  const handleImport = () => {
+    const selectedProcs = results.filter((p, i) => selectedIds.has(p.id || i));
+    
+    const mappedData = selectedProcs.map(proc => {
+      const tribunalSigla = proc.fontes && proc.fontes.length > 0 && proc.fontes[0].tribunal 
+        ? proc.fontes[0].tribunal.sigla 
+        : '';
+      
+      const valorCausaStr = proc.fontes?.[0]?.capa?.valor_causa?.valor;
+      let valorCausa = null;
+      if (valorCausaStr !== undefined && valorCausaStr !== null) {
+        const parsed = parseFloat(String(valorCausaStr));
+        if (!isNaN(parsed)) valorCausa = parsed;
+      }
+
+      const startDate = proc.data_inicio ? String(proc.data_inicio).split('T')[0] : null;
+
+      let baseActive = proc.titulo_polo_ativo || '';
+      let basePassive = proc.titulo_polo_passivo || '';
+
+      const allParts: any[] = [];
+      (proc.fontes || []).forEach((f: any) => {
+        if (f.envolvidos) allParts.push(...f.envolvidos);
+      });
+
+      if (!baseActive || !basePassive) {
+        const tribunalFonte = (proc.fontes || []).find((f: any) => f.tipo === 'TRIBUNAL' && f.grau === 1);
+        if (tribunalFonte && tribunalFonte.envolvidos) {
+          const at = tribunalFonte.envolvidos.find((p: any) => p.polo === 'ATIVO')?.nome;
+          const pa = tribunalFonte.envolvidos.find((p: any) => p.polo === 'PASSIVO')?.nome;
+          if (at && !baseActive) baseActive = at;
+          if (pa && !basePassive) basePassive = pa;
+        }
+      }
+
+      let activePart = baseActive;
+      let passivePart = basePassive;
+
+      allParts.forEach((p: any) => {
+        const nome = p.nome;
+        if (!nome || p.tipo_normalizado === 'Advogado') return;
+        
+        if (isAbbreviation(baseActive, nome) && nome.length > activePart.length) {
+          activePart = nome;
+        }
+        if (isAbbreviation(basePassive, nome) && nome.length > passivePart.length) {
+          passivePart = nome;
+        }
+      });
+
+      if (!activePart && proc.titulo && proc.titulo !== passivePart) {
+        activePart = proc.titulo;
+      }
+
+      const cleanTerm = searchType === 'documento' ? searchTerm.replace(/[^\d]/g, '') : searchTerm.toLowerCase();
+
+      const isTerceiroInteressado = allParts.some(p => {
+        if (searchType === 'documento') {
+          return (p.cnpj === cleanTerm || p.cpf === cleanTerm) && 
+                 (p.tipo_normalizado?.toLowerCase() === 'interessado' || p.tipo?.toLowerCase() === 'interessado' || p.tipo_normalizado?.toLowerCase() === 'terceiro interessado');
+        } else {
+          return p.nome?.toLowerCase() === cleanTerm &&
+                 (p.tipo_normalizado?.toLowerCase() === 'interessado' || p.tipo?.toLowerCase() === 'interessado' || p.tipo_normalizado?.toLowerCase() === 'terceiro interessado');
+        }
+      });
+
+      const thirdPartyText = isTerceiroInteressado ? `[ATENÇÃO: Parte Consultada consta como TERCEIRO INTERESSADO]\n` : '';
+
+      const subjectsArr = proc.fontes?.[0]?.assuntos;
+      const subjects = Array.isArray(subjectsArr) ? subjectsArr.map((a: any) => a.nome).join(', ') : 'Não informado';
+
+      const allPartiesList = allParts.map(p => `${p.nome} (${p.tipo_normalizado || p.tipo || 'Parte'})`)
+        .filter((v, i, a) => a.indexOf(v) === i).join('; ');
+
+      const dossieCompleto = `${thirdPartyText}Assuntos: ${subjects}\nEnvolvidos: ${allPartiesList}`;
+
+      return {
+        case_number: proc.numero_cnj || '',
+        claimant_name: activePart || 'Reclamante não identificado',
+        respondent_name: passivePart || 'Empresa não identificada',
+        tribunal: tribunalSigla,
+        labor_court: `${proc.fontes?.[0]?.capa?.classe || ''} ${proc.fontes?.[0]?.capa?.comarca ? `- ${proc.fontes?.[0]?.capa?.comarca}` : ''}`.trim(),
+        distribution_date: startDate,
+        main_claims: dossieCompleto,
+        cause_value: valorCausa,
+        current_phase: 'Inicial',
+        risk_provision: 'Possible',
+        next_action: passivePart ? `Ação contra: ${passivePart}` : ''
+      };
+    });
+
+    onSuccess(mappedData);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-deep-navy/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-white w-full max-w-2xl mx-4 shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-primary/5 px-6 pt-6 pb-4 flex gap-4 items-start border-b border-primary/10 shrink-0">
+          <div className="w-12 h-12 bg-primary/10 flex items-center justify-center text-primary shrink-0 rounded-xl mt-0.5">
+            <Search size={24} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-base font-black text-deep-navy uppercase tracking-tight">Buscar nos Tribunais</h3>
+            <p className="text-[11px] font-bold text-deep-navy/40 uppercase tracking-widest mt-1">Integração com Escavador (Busca por CPF/CNPJ ou Nome)</p>
+          </div>
+          {saldo && (
+            <div className="text-right flex flex-col items-end">
+              <span className="text-[10px] font-black text-deep-navy/40 uppercase tracking-widest">Saldo na API</span>
+              <span className="text-sm font-black text-primary">{saldo.saldo_descricao || `${saldo.quantidade_creditos} créditos`}</span>
+              {custoUltimaConsulta !== null && custoUltimaConsulta > 0 && (
+                <span className="text-[10px] font-bold text-red-500 mt-1">- {custoUltimaConsulta} {custoUltimaConsulta === 1 ? 'crédito gasto' : 'créditos gastos'}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 flex-1 overflow-y-auto">
+          <form onSubmit={handleSearch} className="space-y-5 mb-6">
+            {error && (
+              <div className="bg-red-50 text-red-600 text-[11px] font-bold p-3 rounded-lg border border-red-100 flex items-center gap-2">
+                <AlertTriangle size={14} /> {error}
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 mb-2">
+                <label className="flex items-center gap-2 text-[11px] font-bold text-deep-navy/70 cursor-pointer">
+                  <input type="radio" checked={searchType === 'documento'} onChange={() => setSearchType('documento')} className="accent-primary" />
+                  CPF / CNPJ
+                </label>
+                <label className="flex items-center gap-2 text-[11px] font-bold text-deep-navy/70 cursor-pointer">
+                  <input type="radio" checked={searchType === 'nome'} onChange={() => setSearchType('nome')} className="accent-primary" />
+                  Nome / Razão Social
+                </label>
+              </div>
+              <label className="text-[10px] font-black text-deep-navy/50 uppercase tracking-widest">
+                {searchType === 'documento' ? 'CPF ou CNPJ do Envolvido' : 'Nome ou Razão Social do Envolvido'}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder={searchType === 'documento' ? "Ex: 000.000.000-00 ou 00.000.000/0000-00" : "Ex: João da Silva ou Empresa XYZ LTDA"}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-deep-navy focus:bg-white focus:border-primary/50 outline-none transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !searchTerm}
+                  className="px-6 py-3 bg-primary text-white text-[11px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {results.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-deep-navy/50 uppercase tracking-widest">Resultados Encontrados ({results.length})</p>
+                <button type="button" onClick={toggleAll} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+                  {selectedIds.size === results.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+                </button>
+              </div>
+              <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                {results.map((proc, i) => {
+                  const id = proc.id || i;
+                  const isSelected = selectedIds.has(id);
+                  let dataInicio = 'N/A';
+                  if (proc.data_inicio) {
+                    const d = new Date(proc.data_inicio);
+                    if (!isNaN(d.getTime())) {
+                      dataInicio = format(d, 'dd/MM/yyyy');
+                    }
+                  }
+                  
+                  const capa = proc.fontes?.[0]?.capa;
+                  const tribunal = proc.fontes?.[0]?.tribunal;
+                  
+                  const rawValor = capa?.valor_causa?.valor;
+                  const valorCausaStr = (typeof rawValor === 'string' || typeof rawValor === 'number') ? String(rawValor) : 'Não informado';
+                  
+                  const assuntosArr = proc.fontes?.[0]?.assuntos;
+                  const assuntos = Array.isArray(assuntosArr) ? assuntosArr.map((a: any) => String(a.nome || '')).join(', ') : '';
+                  const assuntosDisplay = assuntos || 'Nenhum assunto listado';
+                  
+                  let dataUltimaMov = 'N/A';
+                  if (proc.data_ultima_movimentacao) {
+                    const d2 = new Date(proc.data_ultima_movimentacao);
+                    if (!isNaN(d2.getTime())) {
+                      dataUltimaMov = format(d2, 'dd/MM/yyyy');
+                    }
+                  }
+                  
+                  const envolvidosArr = proc.fontes?.[0]?.envolvidos;
+                  const envolvidosDisplay = Array.isArray(envolvidosArr) ? envolvidosArr.map((e: any) => `${String(e.nome || '')} (${String(e.tipo_normalizado || e.tipo || 'Parte')})`).join(', ') : '';
+                  
+                  const numCnj = (typeof proc.numero_cnj === 'string' || typeof proc.numero_cnj === 'number') ? String(proc.numero_cnj) : 'Sem número';
+                  const estado = typeof proc.estado_origem === 'string' ? proc.estado_origem : 'BR';
+                  const titulo = typeof proc.titulo === 'string' ? proc.titulo : 'Processo';
+                  const sigla = typeof tribunal?.sigla === 'string' ? tribunal.sigla : '';
+                  const classe = typeof capa?.classe === 'string' ? `- ${capa.classe}` : '';
+                  const comarca = typeof capa?.comarca === 'string' ? `- ${capa.comarca}` : '';
+                  
+                  return (
+                    <div key={id} className={cn("p-5 border rounded-2xl transition-all cursor-pointer", isSelected ? "bg-primary/5 border-primary shadow-sm" : "bg-slate-50 border-slate-100 hover:border-primary/30")} onClick={() => toggleSelect(id)}>
+                      <div className="flex items-start gap-4">
+                        <div className={cn("w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5", isSelected ? "bg-primary border-primary text-white" : "bg-white border-slate-300 text-transparent")}>
+                          <Check size={14} />
+                        </div>
+                        <div className="flex-1 space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-black text-primary tracking-tight">{numCnj}</p>
+                              <span className="text-[9px] font-black uppercase bg-white border border-slate-200 px-2 py-0.5 rounded-sm">{estado}</span>
+                            </div>
+                            <p className="text-xs font-bold text-deep-navy/80">{titulo}</p>
+                            <p className="text-[10px] font-bold text-deep-navy/40 mt-0.5">
+                              {sigla} {classe} {comarca}
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 p-3 bg-white rounded-xl border border-slate-100">
+                            <div>
+                              <p className="text-[8px] font-black text-deep-navy/30 uppercase tracking-widest">Início</p>
+                              <p className="text-[10px] font-bold text-deep-navy/70">{dataInicio}</p>
+                            </div>
+                            <div>
+                              <p className="text-[8px] font-black text-deep-navy/30 uppercase tracking-widest">Últ. Movimentação</p>
+                              <p className="text-[10px] font-bold text-deep-navy/70">{dataUltimaMov}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-[8px] font-black text-deep-navy/30 uppercase tracking-widest">Valor da Causa</p>
+                              <p className="text-[10px] font-bold text-deep-navy/70">{valorCausaStr}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-[8px] font-black text-deep-navy/30 uppercase tracking-widest">Envolvidos</p>
+                              <p className="text-[10px] font-bold text-deep-navy/70 line-clamp-2" title={envolvidosDisplay}>{envolvidosDisplay || 'Nenhum envolvido listado'}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-[8px] font-black text-deep-navy/30 uppercase tracking-widest">Assuntos Principais</p>
+                              <p className="text-[10px] font-bold text-deep-navy/70 line-clamp-1" title={assuntosDisplay}>{assuntosDisplay}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-slate-100 shrink-0 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3.5 border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-deep-navy/60 hover:bg-slate-50 transition-all rounded-xl"
+          >
+            Cancelar
+          </button>
+          {results.length > 0 && (
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={selectedIds.size === 0}
+              className="flex-1 py-3.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-primary/20"
+            >
+              Importar ({selectedIds.size})
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function SuccessModal({ message, onClose }: { message: string, onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-deep-navy/40 backdrop-blur-sm p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="bg-white rounded-[2rem] shadow-2xl p-8 max-w-sm w-full text-center relative overflow-hidden"
+      >
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+        <div className="w-20 h-20 bg-emerald-50 rounded-full mx-auto flex items-center justify-center text-emerald-500 mb-6 shadow-inner">
+          <CheckCircle size={40} />
+        </div>
+        <h3 className="text-xl font-black text-deep-navy tracking-tight mb-2">Aviso</h3>
+        <p className="text-deep-navy/60 font-medium mb-8 text-sm leading-relaxed">{message}</p>
+        <button
+          onClick={onClose}
+          className="w-full py-4 bg-deep-navy text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-primary transition-all shadow-lg shadow-deep-navy/20"
+        >
+          Entendido
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }
