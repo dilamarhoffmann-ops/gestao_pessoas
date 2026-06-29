@@ -809,6 +809,10 @@ app.delete('/api/users/:id/auth', async (req, res) => {
   }
 
   try {
+    // Limpar chaves estrangeiras em tabelas conhecidas para evitar 'Database error deleting user'
+    await supabaseAdmin.from('issued_receipts').update({ created_by: null }).eq('created_by', id);
+    await supabaseAdmin.from('receipt_configurations').update({ approver_id: null }).eq('approver_id', id);
+
     // Apaga do auth.users (isso também pode apagar em cascata da tabela profiles dependendo da sua configuração do banco, mas podemos apagar do profile antes por garantia)
     const { error: deleteProfileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
     // Mesmo se der erro no profile (ex: não existir), tentamos deletar do auth
@@ -1151,6 +1155,10 @@ app.delete('/api/admin/users/delete', async (req, res) => {
   if (!id || typeof id !== 'string') return res.status(400).json({ error: 'ID inválido.' });
 
   try {
+    // Limpar chaves estrangeiras em tabelas conhecidas para evitar 'Database error deleting user'
+    await supabaseAdmin.from('issued_receipts').update({ created_by: null }).eq('created_by', id);
+    await supabaseAdmin.from('receipt_configurations').update({ approver_id: null }).eq('approver_id', id);
+
     const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
     if (authError) throw authError;

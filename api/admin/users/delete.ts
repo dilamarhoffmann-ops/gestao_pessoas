@@ -29,6 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        // Limpar chaves estrangeiras em tabelas conhecidas para evitar 'Database error deleting user'
+        await supabaseAdmin.from('issued_receipts').update({ created_by: null }).eq('created_by', id);
+        await supabaseAdmin.from('receipt_configurations').update({ approver_id: null }).eq('approver_id', id);
+
         // Deletar da tabela profiles primeiro
         const { error: deleteProfileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
         
